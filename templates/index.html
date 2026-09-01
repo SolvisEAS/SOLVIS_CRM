@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+  <h1 class="mb-4">Panel principal</h1>
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('leads.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Leads</div>
+          <div class="fs-2 fw-bold">{{ stats.leads }}</div>
+        </div></div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('contacts.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Contactos</div>
+          <div class="fs-2 fw-bold">{{ stats.contacts }}</div>
+        </div></div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('companies.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Empresas</div>
+          <div class="fs-2 fw-bold">{{ stats.companies }}</div>
+        </div></div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('opportunities.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Oportunidades</div>
+          <div class="fs-2 fw-bold">{{ stats.opportunities }}</div>
+        </div></div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('products.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Productos</div>
+          <div class="fs-2 fw-bold">{{ stats.products }}</div>
+        </div></div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('activities.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Actividades pendientes</div>
+          <div class="fs-2 fw-bold">{{ stats.activities }}</div>
+        </div></div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{{ url_for('deliveries.list_view') }}" class="text-decoration-none">
+        <div class="card shadow-sm"><div class="card-body">
+          <div class="text-muted">Deliveries en curso</div>
+          <div class="fs-2 fw-bold">{{ stats.deliveries }}</div>
+        </div></div>
+      </a>
+    </div>
+  </div>
+{% endblock %}
