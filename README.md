@@ -1,75 +1,151 @@
-# CRM Roancom — versión inicial
+# SOLVIS CRM — Fase 1: Núcleo del proyecto
 
-CRM básico hecho con Python (Flask). Incluye login por email/contraseña y 7 módulos: Leads, Contactos, Empresas, Oportunidades, Productos, Actividades y Seguimiento de Delivery.
+Esta es la primera fase de la migración de SOLVIS CRM (Flask) a Django.
+Incluye únicamente lo que el documento de arquitectura define como
+**núcleo**: proyecto Django, configuración por entornos, PostgreSQL,
+modelo de usuario personalizado, autenticación JWT y permisos base.
 
-## Estructura del proyecto
+Todavía **no** incluye Empresas, Contactos, Leads, Oportunidades, etc.
+— eso es la Fase 2.
 
+## 1. Requisitos previos
+
+- Python 3.10+
+- Docker y Docker Compose (para PostgreSQL)
+
+## 2. Puesta en marcha (paso a paso)
+
+### 2.1 Levantar PostgreSQL
+
+```bash
+docker compose up -d
 ```
-crm-app/
-  app.py          -> arma la app y define los 7 módulos (campos y columnas de cada uno)
-  extensions.py   -> objetos compartidos (base de datos, login)
-  models.py       -> las tablas de la base de datos
-  auth.py         -> registro / login / logout
-  crud.py         -> el "motor" genérico que arma listar/crear/editar/borrar para cualquier módulo
-  templates/      -> las páginas HTML (usa Bootstrap por CDN, no hay que instalar nada aparte)
-  requirements.txt
+
+Verificá que el contenedor está sano:
+
+```bash
+docker compose ps
+# solvis_crm_db debe aparecer como "healthy"
 ```
 
-## Cómo correrlo en su computadora (desarrollo local)
+### 2.2 Crear entorno virtual e instalar dependencias
 
-1. Necesitan Python 3.10 o superior instalado.
-2. Abran una terminal dentro de la carpeta `crm-app` y creen un entorno virtual:
+```bash
+python3 -m venv venv
+source venv/bin/activate        # En Windows: venv\Scripts\activate
+pip install -r requirements/development.txt
+```
 
-   ```
-   python3 -m venv venv
-   ```
+### 2.3 Configurar variables de entorno
 
-   En Windows: `python -m venv venv`
+```bash
+cp .env.example .env
+```
 
-3. Actívenlo:
+Editá `.env` y como mínimo cambiá `DJANGO_SECRET_KEY` por un valor
+aleatorio propio. Podés generar uno con:
 
-   - Windows (PowerShell): `venv\Scripts\Activate.ps1`
-   - Mac/Linux: `source venv/bin/activate`
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+```
 
-4. Instalen las dependencias:
+### 2.4 Aplicar migraciones
 
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+python manage.py makemigrations users
+python manage.py migrate
+```
 
-5. Corran la aplicación:
+### 2.5 Crear un superusuario
 
-   ```
-   python app.py
-   ```
+```bash
+python manage.py createsuperuser
+```
 
-6. Abran el navegador en `http://127.0.0.1:5000` — la primera vez los va a mandar a la pantalla de login. Hagan clic en "Registrate" para crear el primer usuario.
+### 2.6 Levantar el servidor
 
-Por defecto usa una base de datos SQLite local (un archivo `crm.db` que se crea solo en la carpeta). No hace falta instalar PostgreSQL para probarlo en la computadora.
+```bash
+python manage.py runserver
+```
 
-## Cómo agregar un módulo nuevo el día de mañana
+## 3. Checklist de verificación de la Fase 1
 
-Todos los módulos (Leads, Contactos, etc.) se generan con la misma función `create_crud_blueprint()` en `app.py`. Para agregar uno nuevo:
+No sigas a la Fase 2 hasta confirmar cada uno de estos puntos:
 
-1. Agregar el modelo (la tabla) en `models.py`.
-2. Copiar uno de los bloques existentes en `app.py` (por ejemplo el de "Productos") y cambiar el nombre, el modelo y los campos.
-3. Agregar `app.register_blueprint(mi_nuevo_bp)` junto a los demás.
-4. Agregarlo al menú de navegación en `templates/base.html`.
+- [ ] **Docker/Postgres**: `docker compose ps` muestra `solvis_crm_db` como `healthy`.
+- [ ] **Migraciones**: `python manage.py migrate` corre sin errores y crea las tablas (incluida `users_user`).
+- [ ] **Admin de Django**: entrando a `http://127.0.0.1:8000/admin/` podés loguearte con el superusuario y ver el modelo "Usuarios" con el campo `role`.
+- [ ] **Registro de usuario** (endpoint público):
 
-No hace falta tocar ni `crud.py` ni las plantillas `list.html`/`form.html` — esas son genéricas y sirven para cualquier módulo nuevo.
+  ```bash
+  curl -X POST http://127.0.0.1:8000/api/users/register/ \
+    -H "Content-Type: application/json" \
+    -d '{"username":"jperez","email":"jperez@solvis.com","password":"unaClaveSegura123","first_name":"Juan","last_name":"Perez"}'
+  ```
 
-## Trabajar de a dos con Git/GitHub
+  Debe devolver `201 Created` con los datos del usuario (sin la contraseña).
 
-1. Uno de los dos crea un repositorio nuevo en GitHub (privado, ya que va a tener el código de la empresa).
-2. Suben este proyecto tal cual está (excepto la carpeta `venv/` y el archivo `crm.db`, que no deben subirse — ya viene un `.gitignore` preparado para esto).
-3. El otro clona el repositorio y sigue los pasos de "Cómo correrlo en su computadora" de arriba.
-4. Trabajen con ramas (`git checkout -b nombre-de-la-funcionalidad`) y Pull Requests para no pisarse el código.
+- [ ] **Login JWT**:
 
-## Próximo paso: desplegarlo en el servidor de UpCloud
+  ```bash
+  curl -X POST http://127.0.0.1:8000/api/auth/login/ \
+    -H "Content-Type: application/json" \
+    -d '{"username":"jperez","password":"unaClaveSegura123"}'
+  ```
 
-Esto lo vamos a hacer juntos más adelante, una vez que el CRM esté andando bien en local y probado por los dos. La idea general (ya la charlamos):
+  Debe devolver un JSON con `access` y `refresh`.
 
-- Usar la misma base PostgreSQL que ya está instalada en el servidor (creando una base de datos nueva, separada de la de Odoo).
-- Correr esta app con Gunicorn (un servidor de producción para Flask) en un puerto distinto al de Odoo (por ejemplo, el 5000).
-- Armar un servicio de systemd, igual a como hicimos con Odoo, para que quede siempre encendido.
-- Configurar Nginx como "portero" para que Odoo y el CRM convivan prolijos en el mismo servidor.
+- [ ] **Endpoint protegido `/me/`**:
+
+  ```bash
+  curl http://127.0.0.1:8000/api/users/me/ \
+    -H "Authorization: Bearer <PEGAR_ACCESS_TOKEN_ACA>"
+  ```
+
+  Debe devolver los datos del usuario autenticado. Sin el header
+  `Authorization`, debe devolver `401 Unauthorized`.
+
+- [ ] **Refresh token**:
+
+  ```bash
+  curl -X POST http://127.0.0.1:8000/api/auth/refresh/ \
+    -H "Content-Type: application/json" \
+    -d '{"refresh":"<PEGAR_REFRESH_TOKEN_ACA>"}'
+  ```
+
+  Debe devolver un nuevo `access` token.
+
+- [ ] **Logout (blacklist)**:
+
+  ```bash
+  curl -X POST http://127.0.0.1:8000/api/auth/logout/ \
+    -H "Content-Type: application/json" \
+    -d '{"refresh":"<PEGAR_REFRESH_TOKEN_ACA>"}'
+  ```
+
+  Debe devolver `200`. Un intento posterior de usar ese mismo refresh
+  token para pedir un nuevo access token debe fallar.
+
+## 4. Qué se decidió y por qué
+
+- **Modelo de usuario personalizado desde el día 1**: se hereda de
+  `AbstractUser` y se agrega `role`. Cambiar `AUTH_USER_MODEL` después
+  de la primera migración es muy costoso en Django, por eso se resuelve
+  ahora aunque los permisos granulares por módulo vengan en Fase 2/3.
+- **Configuración por entornos** (`base.py` / `development.py` /
+  `production.py`): siguiendo exactamente la estructura del documento,
+  con `python-decouple` para leer variables de entorno.
+- **PostgreSQL vía Docker** en desarrollo, para que el entorno local
+  sea idéntico al de producción desde el principio.
+- **JWT con `djangorestframework-simplejwt`**, incluyendo blacklist de
+  refresh tokens para permitir un logout real.
+- **Permisos base** (`core/permissions.py`): están las clases para
+  `ADMINISTRADOR` y `GERENTE`, pero todavía no se aplican a ningún
+  endpoint de negocio porque esos módulos no existen aún. Se van a
+  usar a partir de la Fase 2.
+
+## 5. Siguiente paso
+
+Una vez que confirmes que todos los puntos de la checklist funcionan
+en tu entorno, avisame y seguimos con la **Fase 2 — CRM básico**
+(Empresas, Contactos, Leads, Oportunidades, Etapas del pipeline).

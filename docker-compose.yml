@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: solvis_crm_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-solvis_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-solvis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-solvis_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - solvis_crm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-solvis} -d ${POSTGRES_DB:-solvis_crm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  solvis_crm_pgdata:
