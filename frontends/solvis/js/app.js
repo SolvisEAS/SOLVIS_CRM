@@ -14,14 +14,28 @@ import { renderSettings } from "./views/settings.js";
 const FRONTEND = "solvis";
 const root = document.getElementById("app");
 
-const TABS = [
-  { path: "home", label: "Inicio", icon: "home" },
-  { path: "leads", label: "Leads", icon: "lead" },
-  { path: "contacts", label: "Contactos", icon: "contact" },
-  { path: "companies", label: "Empresas", icon: "company" },
-  { path: "deals", label: "Oportunidades", icon: "deal" },
-  { path: "tasks", label: "Actividades", icon: "task" },
+// Menú lateral, agrupado como en Zoho CRM.
+const NAV = [
+  { items: [{ path: "home", label: "Inicio", icon: "home" }] },
+  { title: "Ventas", items: [
+    { path: "leads", label: "Leads", icon: "lead" },
+    { path: "contacts", label: "Contactos", icon: "contact" },
+    { path: "companies", label: "Empresas", icon: "company" },
+    { path: "deals", label: "Oportunidades", icon: "deal" },
+  ] },
+  { title: "Actividades", items: [{ path: "tasks", label: "Tareas", icon: "task" }] },
+  { title: "Administrador", items: [
+    { path: "settings/users", label: "Usuarios", icon: "users" },
+    { path: "settings/stages", label: "Etapas del pipeline", icon: "kanban" },
+    { path: "settings/company", label: "Empresa", icon: "company" },
+  ] },
 ];
+const SECTION_TITLES = { home: ["Inicio", "home"], tasks: ["Actividades", "task"], search: ["Búsqueda", "search"], settings: ["Configuración", "settings"] };
+
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(`solvis_crm_${k}`)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(`solvis_crm_${k}`, JSON.stringify(v)); } catch {} },
+};
 
 // ---------- Login ----------
 function renderLogin(message) {
@@ -64,39 +78,95 @@ function renderLogin(message) {
   ));
 }
 
-// ---------- Barra superior ----------
-function topbar() {
+// ---------- Menú lateral y cabecera ----------
+let shell, crumb;
+const isMobile = () => matchMedia("(max-width: 860px)").matches;
+function applyCollapsed() { shell.classList.toggle("collapsed", !isMobile() && store.get("collapsed", false)); }
+
+function sidebar() {
   const user = session.user;
+  const tenant = session.tenant;
+  // Filtra las opciones del menú, como el "Buscar" del menú de Zoho.
   const search = h("input", {
-    type: "search", placeholder: "Buscar en el CRM…",
+    type: "search", placeholder: "Buscar en el menú",
+    oninput: () => {
+      const q = search.value.trim().toLowerCase();
+      document.querySelectorAll(".sidebar .sb-link").forEach((a) => a.classList.toggle("hidden", !!q && !a.textContent.toLowerCase().includes(q)));
+      document.querySelectorAll(".sidebar .sb-group").forEach((g) => {
+        if (q) g.classList.remove("closed");
+        g.classList.toggle("hidden", !!q && !g.querySelector(".sb-link:not(.hidden)"));
+      });
+    },
+  });
+  const closedGroups = store.get("closed_groups", []);
+  const link = (it) => h("a.sb-link", { href: `#/${it.path}`, dataset: { path: it.path }, title: it.label }, icon(it.icon), h("span.sb-label", it.label));
+  const groups = NAV.map((g) => {
+    if (!g.title) return g.items.map(link);
+    const box = h(`div.sb-group${closedGroups.includes(g.title) ? ".closed" : ""}`,
+      h("button.sb-group-title", { type: "button", onclick: () => {
+        box.classList.toggle("closed");
+        const closed = new Set(store.get("closed_groups", []));
+        box.classList.contains("closed") ? closed.add(g.title) : closed.delete(g.title);
+        store.set("closed_groups", [...closed]);
+      } }, h("span", g.title), icon("chevron", "chev")),
+      h("div.sb-items", g.items.map(link)));
+    return box;
+  });
+  return h("aside.sidebar",
+    h("div.sb-top",
+      h("a.brand", { href: "#/home" }, h("img", { src: tenant?.logo_url || "img/isotipo-blanco.png", alt: "" }), h("span", "Solvis CRM")),
+      h("button.btn.btn-ghost.btn-icon.sb-collapse", { title: "Contraer menú", onclick: () => { store.set("collapsed", !store.get("collapsed", false)); applyCollapsed(); } }, icon("panel"))),
+    h("div.sb-scroll",
+      groups.slice(0, 1),
+      h("div.sb-sep"),
+      h("div.sb-tenant", { title: tenant?.name || "" }, avatar(tenant?.name || "S"), h("span.sb-label", tenant?.name || "")),
+      h("div.sb-search", icon("search"), search),
+      groups.slice(1)),
+    h("div.sb-foot",
+      avatar(user?.full_name || user?.username),
+      h("div.who", h("div", { style: { color: "#fff", fontWeight: 600 } }, user?.full_name), h("div.small", user?.role || "")),
+      h("button.btn.btn-ghost.btn-icon", { title: "Cerrar sesión", onclick: () => { logout(); renderLogin(); } }, icon("logout"))));
+}
+
+function header() {
+  crumb = h("div.crumb");
+  const search = h("input", {
+    type: "search", placeholder: "Buscar registros",
     onkeydown: (e) => { if (e.key === "Enter" && search.value.trim()) location.hash = `#/search?q=${encodeURIComponent(search.value.trim())}`; },
   });
-  const plusBtn = h("button.btn.btn-ghost.btn-icon", { title: "Crear", onclick: () => popover(plusBtn, [
+  const plusBtn = h("button.btn.btn-primary.btn-create", { title: "Crear", onclick: () => popover(plusBtn, [
     h("div.group-title", "Crear"),
     ...Object.values(MODULES).map((m) => h("a.item", { href: `#/${m.path}/new` }, icon(m.icon), `${m.gender === "f" ? "Nueva" : "Nuevo"} ${m.singular.toLowerCase()}`)),
     h("button.item", { onclick: () => openTaskModal({ onSaved: () => route() }) }, icon("task"), "Nueva tarea"),
   ], { align: "right" }) }, icon("plus"));
+  const user = session.user;
   const av = avatar(user?.full_name || user?.username);
   av.title = user?.full_name || "";
   av.addEventListener("click", () => popover(av, [
-    h("div.head", h("div", { style: { fontWeight: 600 } }, user?.full_name), h("div.muted.small", user?.tenant?.name || ""), h("div.muted.small", user?.role || "")),
+    h("div.head", h("div", { style: { fontWeight: 600 } }, user?.full_name), h("div.muted.small", session.tenant?.name || ""), h("div.muted.small", user?.role || "")),
     h("div.sep"),
     h("a.item", { href: "#/settings" }, icon("settings"), "Configuración"),
     h("button.item", { onclick: () => { logout(); renderLogin(); } }, icon("logout"), "Cerrar sesión"),
   ], { align: "right" }));
-
   return h("header.topbar",
-    h("a.brand", { href: "#/home" }, h("img", { src: tenantLogo(), alt: "" }), h("span", "CRM ", h("small", session.tenant?.slug === "solvis" ? "" : `· ${session.tenant?.name || ""}`))),
-    h("nav.tabs", TABS.map((t) => h("a.tab", { href: `#/${t.path}`, dataset: { path: t.path } }, icon(t.icon), t.label))),
+    h("button.btn.btn-ghost.btn-icon.menu-btn", { title: "Menú", onclick: () => shell.classList.add("mobile-open") }, icon("menu")),
+    crumb,
+    h("div.top-search", icon("search"), search),
     h("div.topbar-right",
-      h("div.global-search", icon("search"), search),
       plusBtn,
+      h("a.btn.btn-ghost.btn-icon", { href: "#/tasks", title: "Mis tareas" }, icon("task")),
       h("a.btn.btn-ghost.btn-icon", { href: "#/settings", title: "Configuración" }, icon("settings")),
-      av,
-    ),
-  );
+      av));
 }
-const tenantLogo = () => session.tenant?.logo_url || "img/isotipo-blanco.png";
+
+function setActive(section, sub) {
+  const key = section === "settings" ? `settings/${sub || "users"}` : section;
+  document.querySelectorAll(".sb-link").forEach((a) => a.classList.toggle("active", a.dataset.path === key));
+  const mod = byPath(section);
+  const [label, ic] = mod ? [mod.plural, mod.icon] : SECTION_TITLES[section] || ["", "home"];
+  crumb.replaceChildren(icon(ic), label);
+  shell.classList.remove("mobile-open");
+}
 
 function applyBranding() {
   const t = session.tenant;
@@ -115,7 +185,7 @@ async function route() {
   if (!session.isLoggedIn) return renderLogin();
   const { parts, query } = parseHash();
   const [section = "home", id, action] = parts;
-  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.path === section || (section === "search" && false)));
+  setActive(section, id);
   window.scrollTo(0, 0);
   const page = h("main.page");
   main.replaceWith(page);
@@ -144,10 +214,13 @@ async function start() {
   resetCaches();
   applyBranding();
   main = h("main.page");
-  root.replaceChildren(topbar(), main);
+  shell = h("div.shell", sidebar(), h("div.sb-backdrop", { onclick: () => shell.classList.remove("mobile-open") }), h("div.main-area", header(), main));
+  root.replaceChildren(shell);
+  applyCollapsed();
   route();
 }
 
+window.addEventListener("resize", () => shell && applyCollapsed());
 window.addEventListener("hashchange", () => main && session.isLoggedIn && route());
 window.addEventListener("unhandledrejection", (e) => { if (e.reason instanceof ApiError) toast(e.reason.message, "error"); });
 session.isLoggedIn ? start() : renderLogin();
