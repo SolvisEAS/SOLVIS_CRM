@@ -24,11 +24,13 @@ const NAV = [
     { path: "deals", label: "Oportunidades", icon: "deal" },
   ] },
   { title: "Actividades", items: [{ path: "tasks", label: "Tareas", icon: "task" }] },
-  { title: "Administrador", items: [
-    { path: "settings/users", label: "Usuarios", icon: "users" },
-    { path: "settings/stages", label: "Etapas del pipeline", icon: "kanban" },
-    { path: "settings/company", label: "Empresa", icon: "company" },
-  ] },
+];
+
+// Menú de Configuración: reemplaza al menú principal mientras se está en #/settings.
+const SETTINGS_NAV = [
+  { title: "General", items: [{ path: "settings/company", label: "Información de la empresa", icon: "company" }] },
+  { title: "Usuarios y permisos", items: [{ path: "settings/users", label: "Usuarios", icon: "users" }] },
+  { title: "Personalización", items: [{ path: "settings/stages", label: "Pipeline de ventas", icon: "kanban" }] },
 ];
 const SECTION_TITLES = { home: ["Inicio", "home"], tasks: ["Actividades", "task"], search: ["Búsqueda", "search"], settings: ["Configuración", "settings"] };
 
@@ -112,11 +114,16 @@ function sidebar() {
       h("div.sb-items", g.items.map(link)));
     return box;
   });
+  const settingsNav = h("div.sb-settings",
+    h("a.sb-link.sb-back", { href: "#/home", onclick: (e) => { e.preventDefault(); location.hash = lastAppHash; } }, icon("back"), h("span.sb-label", "Volver al CRM")),
+    h("a.sb-settings-title", { href: "#/settings", title: "Configuración" }, icon("settings"), h("span.sb-label", "Configuración")),
+    SETTINGS_NAV.map((g) => h("div.sb-group", h("div.sb-group-title", h("span", g.title)), h("div.sb-items", g.items.map(link)))));
   return h("aside.sidebar",
     h("div.sb-top",
       h("a.brand", { href: "#/home" }, h("img", { src: tenant?.logo_url || "img/isotipo-blanco.png", alt: "" }), h("span", "Solvis CRM")),
       h("button.btn.btn-ghost.btn-icon.sb-collapse", { title: "Contraer menú", onclick: () => { store.set("collapsed", !store.get("collapsed", false)); applyCollapsed(); } }, icon("panel"))),
-    h("div.sb-scroll",
+    h("div.sb-scroll.sb-settings-scroll", settingsNav),
+    h("div.sb-scroll.sb-main-scroll",
       groups.slice(0, 1),
       h("div.sb-sep"),
       h("div.sb-tenant", { title: tenant?.name || "" }, avatar(tenant?.name || "S"), h("span.sb-label", tenant?.name || "")),
@@ -155,12 +162,16 @@ function header() {
     h("div.topbar-right",
       plusBtn,
       h("a.btn.btn-ghost.btn-icon", { href: "#/tasks", title: "Mis tareas" }, icon("task")),
-      h("a.btn.btn-ghost.btn-icon", { href: "#/settings", title: "Configuración" }, icon("settings")),
+      h("a.btn.btn-ghost.btn-icon.settings-btn", { href: "#/settings", title: "Configuración" }, icon("settings")),
       av));
 }
 
+let lastAppHash = "#/home";
 function setActive(section, sub) {
-  const key = section === "settings" ? `settings/${sub || "users"}` : section;
+  const inSettings = section === "settings";
+  shell.classList.toggle("settings-mode", inSettings);
+  if (!inSettings) lastAppHash = location.hash || "#/home";
+  const key = inSettings ? (sub ? `settings/${sub}` : "") : section;
   document.querySelectorAll(".sb-link").forEach((a) => a.classList.toggle("active", a.dataset.path === key));
   const mod = byPath(section);
   const [label, ic] = mod ? [mod.plural, mod.icon] : SECTION_TITLES[section] || ["", "home"];

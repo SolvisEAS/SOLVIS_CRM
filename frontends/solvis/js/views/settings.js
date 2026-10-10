@@ -1,26 +1,73 @@
-// Configuración: empresa, usuarios y etapas del pipeline.
-import { api, session } from "/shared/api.js";
+// Configuración (como el "Setup" de Zoho): inicio con accesos, usuarios, pipeline y empresa.
+import { api, refreshMe, session } from "/shared/api.js";
 import { icon } from "../icons.js";
 import { getMeta, getStages, resetCaches } from "../modules.js";
-import { avatar, badge, h, modal, toast } from "../ui.js";
+import { avatar, badge, emptyState, h, modal, toast } from "../ui.js";
 
-export async function renderSettings(page, tab = "users") {
+const SECTIONS = {
+  company: { title: "Información de la empresa", icon: "company", desc: "Nombre, moneda, colores y logo de tu empresa en el CRM." },
+  users: { title: "Usuarios", icon: "users", desc: "Quiénes usan el CRM y con qué rol: administrador, gerente, vendedor o usuario." },
+  stages: { title: "Pipeline de ventas", icon: "kanban", desc: "Las etapas por las que pasa una oportunidad, su orden, probabilidad y color." },
+};
+
+export async function renderSettings(page, tab) {
   document.title = "Configuración · Solvis CRM";
   const isAdmin = session.user?.role === "ADMINISTRADOR";
-  const tabs = [["users", "Usuarios", "users"], ["stages", "Etapas del pipeline", "kanban"], ["company", "Empresa", "company"]];
-  const body = h("div");
-  page.append(
-    h("div.page-header", h("h1", "Configuración")),
-    h("div.record-layout",
-      h("nav.card.related-nav", h("div.title", "Ajustes"), tabs.map(([k, l, ic]) =>
-        h("a", { href: `#/settings/${k}`, style: tab === k ? { background: "var(--accent-soft)", color: "var(--accent)", fontWeight: 600 } : {} }, icon(ic), l))),
-      body));
+  const rerender = () => { page.replaceChildren(); return renderSettings(page, tab); };
+
+  if (!SECTIONS[tab]) {
+    page.append(
+      h("div.page-header", h("div", h("h1", "Configuración"), h("div.muted", `Ajustes de ${session.tenant?.name || "tu empresa"}`))),
+      h("div.settings-home", Object.entries(SECTIONS).map(([key, s]) => h("a.card.settings-card", { href: `#/settings/${key}` },
+        h("div.kpi-icon", icon(s.icon)), h("div", h("h3", s.title), h("div.muted", s.desc))))));
+    return;
+  }
+
+  const sec = SECTIONS[tab];
+  const head = (...actions) => h("div.page-header", h("div", h("h1", sec.title), h("div.muted", sec.desc)), h("div.grow"), actions);
+  const readOnlyNote = isAdmin ? "" : h("div.card", { style: { padding: "12px 16px", marginBottom: "14px" } }, h("span.muted", "Solo un administrador puede hacer cambios acá."));
 
   if (tab === "company") {
-    const t = session.tenant || {};
-    body.append(h("section.card", h("div.card-header", h("h3", "Empresa")), h("div.card-body", h("div.details",
-      ...[["Nombre", t.name], ["Identificador", t.slug], ["Front", t.frontend], ["Moneda", t.currency]].map(([k, v]) =>
-        h("div.detail-item", h("div.k", k), h("div.v", v || "—")))))));
+    const t = await api("tenant/");
+    const meta = { currencies: [["PYG", "Guaraní (Gs.)"], ["USD", "Dólar (US$)"], ["BRL", "Real (R$)"], ["ARS", "Peso argentino ($)"]] };
+    const name = h("input.input", { value: t.name, disabled: !isAdmin });
+    const currency = h("select.select", { disabled: !isAdmin }, meta.currencies.map(([v, l]) => h("option", { value: v, selected: v === t.currency }, l)));
+    const colorInput = (value) => {
+      const picker = h("input", { type: "color", value: value || "#7B3FE4", disabled: !isAdmin });
+      const text = h("input.input", { value: value || "", placeholder: "#RRGGBB", disabled: !isAdmin });
+      picker.addEventListener("input", () => { text.value = picker.value.toUpperCase(); preview(); });
+      text.addEventListener("input", () => { if (/^#[0-9a-f]{6}$/i.test(text.value)) picker.value = text.value; preview(); });
+      return { el: h("div.color-field", picker, text), get: () => text.value.trim() };
+    };
+    const primary = colorInput(t.primary_color);
+    const accent = colorInput(t.accent_color);
+    const logo = h("input.input", { value: t.logo_url, placeholder: "https://… (vacío = logo de Solvis)", disabled: !isAdmin });
+    const previewBox = h("div.brand-preview");
+    function preview() {
+      previewBox.style.background = `linear-gradient(90deg, ${primary.get() || "#0E2959"}, #0a1f47)`;
+      previewBox.replaceChildren(h("img", { src: logo.value.trim() || "img/isotipo-blanco.png", alt: "", style: { height: "26px" } }),
+        h("strong", name.value || "Tu empresa"), h("span.grow"),
+        h("span.btn.btn-sm", { style: { background: accent.get() || "#7B3FE4", borderColor: "transparent", color: "#fff" } }, "Botón"));
+    }
+    [name, logo].forEach((el) => el.addEventListener("input", preview));
+    preview();
+    const field = (label, control) => h("div.field", h("label", label), h("div", control));
+    page.append(
+      head(isAdmin ? h("button.btn.btn-primary", { onclick: async () => {
+        try {
+          await api("tenant/", { method: "PATCH", body: { name: name.value.trim(), currency: currency.value, primary_color: primary.get(), accent_color: accent.get(), logo_url: logo.value.trim() } });
+          await refreshMe();
+          toast("Información guardada. Recargando colores…", "success");
+          setTimeout(() => location.reload(), 900);
+        } catch (ex) { toast(ex.message, "error"); }
+      } }, "Guardar cambios") : null),
+      readOnlyNote,
+      h("section.card.form-section", h("div.card-header", h("h3", "Datos generales")), h("div.card-body.stack",
+        field("Nombre de la empresa", name), field("Moneda", currency),
+        h("div.detail-item", { style: { borderBottom: 0 } }, h("div.k", "Identificador"), h("div.v.muted", `${t.slug} · front "${t.frontend}"`)))),
+      h("section.card.form-section", h("div.card-header", h("h3", "Marca")), h("div.card-body.stack",
+        field("Color principal", primary.el), field("Color de acento", accent.el), field("Logo (URL)", logo),
+        field("Vista previa", previewBox))));
     return;
   }
 
@@ -31,48 +78,55 @@ export async function renderSettings(page, tab = "users") {
       h("td.num", s.sequence), h("td.num", `${s.probability}%`),
       h("td", s.is_won ? "Ganada" : s.is_lost ? "Perdida" : "Abierta"),
       h("td", s.is_active ? "Sí" : "No"),
-      h("td", isAdmin ? h("button.btn.btn-sm", { onclick: () => stageModal(s) }, icon("edit"), "Editar") : "")));
-    body.append(h("section.card",
-      h("div.card-header", h("h3", "Etapas del pipeline"), isAdmin ? h("button.btn.btn-sm.btn-primary", { style: { marginLeft: "auto" }, onclick: () => stageModal() }, icon("plus"), "Nueva etapa") : null),
-      h("div.table-wrap", h("table.grid", h("thead", h("tr", ["Etapa", "Orden", "Probabilidad", "Tipo", "Activa", ""].map((x) => h("th.no-sort", x)))), h("tbody", rows)))));
+      h("td", isAdmin ? h("button.btn.btn-sm", { onclick: () => stageModal(s, rerender) }, icon("edit"), "Editar") : "")));
+    page.append(
+      head(isAdmin ? h("button.btn.btn-primary", { onclick: () => stageModal(null, rerender) }, icon("plus"), "Nueva etapa") : null),
+      readOnlyNote,
+      h("section.card", stages.length
+        ? h("div.table-wrap", h("table.grid", h("thead", h("tr", ["Etapa", "Orden", "Probabilidad", "Tipo", "Activa", ""].map((x, i) => h("th.no-sort", { class: i === 1 || i === 2 ? "num" : "" }, x)))), h("tbody", rows)))
+        : emptyState("Todavía no hay etapas.")));
     return;
   }
 
+  // Usuarios
   const [meta, { results: users }] = await Promise.all([getMeta(), api("users/", { params: { page_size: 200 } })]);
   const roleLabel = (r) => meta.user_role.find((c) => c.value === r)?.label || r;
-  body.append(h("section.card",
-    h("div.card-header", h("h3", "Usuarios"), h("span.muted", `(${users.length})`),
-      isAdmin ? h("button.btn.btn-sm.btn-primary", { style: { marginLeft: "auto" }, onclick: () => userModal(meta) }, icon("plus"), "Nuevo usuario") : null),
-    h("ul.mini-list", users.map((u) => h("li", avatar(u.full_name), h("div.grow", h("div.title", u.full_name), h("div.muted.small", `${u.username}${u.email ? " · " + u.email : ""}`)),
-      badge(u.role, roleLabel(u.role)))))));
-
-  function userModal(meta) {
-    const f = Object.fromEntries(["username", "first_name", "last_name", "email"].map((k) => [k, h("input.input")]));
-    f.email.type = "email";
-    const password = h("input.input", { type: "password", autocomplete: "new-password", minLength: 8 });
-    const role = h("select.select", meta.user_role.map((c) => h("option", { value: c.value, selected: c.value === "VENDEDOR" }, c.label)));
-    const m = modal({
-      title: "Nuevo usuario",
-      body: [
-        h("div.field.required", h("label", "Usuario"), f.username),
-        h("div.field", h("label", "Nombre"), f.first_name), h("div.field", h("label", "Apellido"), f.last_name),
-        h("div.field", h("label", "Correo"), f.email),
-        h("div.field.required", h("label", "Contraseña"), password),
-        h("div.field", h("label", "Rol"), role),
-      ],
-      footer: [h("button.btn", { onclick: () => m.close() }, "Cancelar"), h("button.btn.btn-primary", { onclick: async () => {
-        try {
-          await api("users/", { method: "POST", body: { ...Object.fromEntries(Object.entries(f).map(([k, el]) => [k, el.value.trim()])), password: password.value, role: role.value } });
-          m.close(); resetCaches(); toast("Usuario creado", "success"); location.hash = "#/settings/users"; renderAgain();
-        } catch (ex) { toast(ex.message, "error"); }
-      } }, "Crear usuario")],
-    });
-  }
-
-  function renderAgain() { page.replaceChildren(); renderSettings(page, tab); }
+  page.append(
+    head(isAdmin ? h("button.btn.btn-primary", { onclick: () => userModal(meta, rerender) }, icon("plus"), "Nuevo usuario") : null),
+    readOnlyNote,
+    h("section.card", h("div.table-wrap", h("table.grid",
+      h("thead", h("tr", ["Usuario", "Correo", "Rol", "Estado"].map((x) => h("th.no-sort", x)))),
+      h("tbody", users.map((u) => h("tr",
+        h("td", h("div.row", avatar(u.full_name), h("div", h("div.cell-name", u.full_name), h("div.muted.small", u.username)))),
+        h("td", u.email || h("span.muted", "—")),
+        h("td", badge(u.role, roleLabel(u.role))),
+        h("td", u.is_active ? "Activo" : "Inactivo"))))))));
 }
 
-function stageModal(stage) {
+function userModal(meta, done) {
+  const f = Object.fromEntries(["username", "first_name", "last_name", "email"].map((k) => [k, h("input.input")]));
+  f.email.type = "email";
+  const password = h("input.input", { type: "password", autocomplete: "new-password", minLength: 8 });
+  const role = h("select.select", meta.user_role.map((c) => h("option", { value: c.value, selected: c.value === "VENDEDOR" }, c.label)));
+  const m = modal({
+    title: "Nuevo usuario",
+    body: [
+      h("div.field.required", h("label", "Usuario"), f.username),
+      h("div.field", h("label", "Nombre"), f.first_name), h("div.field", h("label", "Apellido"), f.last_name),
+      h("div.field", h("label", "Correo"), f.email),
+      h("div.field.required", h("label", "Contraseña"), password),
+      h("div.field", h("label", "Rol"), role),
+    ],
+    footer: [h("button.btn", { onclick: () => m.close() }, "Cancelar"), h("button.btn.btn-primary", { onclick: async () => {
+      try {
+        await api("users/", { method: "POST", body: { ...Object.fromEntries(Object.entries(f).map(([k, el]) => [k, el.value.trim()])), password: password.value, role: role.value } });
+        m.close(); resetCaches(); toast("Usuario creado", "success"); done();
+      } catch (ex) { toast(ex.message, "error"); }
+    } }, "Crear usuario")],
+  });
+}
+
+function stageModal(stage, done) {
   const s = stage || { name: "", sequence: 10, probability: 50, color: "#7B3FE4", is_won: false, is_lost: false, is_active: true };
   const name = h("input.input", { value: s.name });
   const sequence = h("input.input", { type: "number", value: s.sequence });
@@ -93,8 +147,7 @@ function stageModal(stage) {
         await api(stage ? `pipeline-stages/${stage.id}/` : "pipeline-stages/", { method: stage ? "PATCH" : "POST", body: {
           name: name.value.trim(), sequence: Number(sequence.value), probability: Number(probability.value), color: color.value,
           is_won: kind.value === "won", is_lost: kind.value === "lost", is_active: active.checked } });
-        m.close(); await getStages(true); toast("Etapa guardada", "success");
-        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        m.close(); await getStages(true); toast("Etapa guardada", "success"); done();
       } catch (ex) { toast(ex.message, "error"); }
     } }, "Guardar")],
   });

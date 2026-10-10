@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import (
 
 from apps.activities.urls import notes_urlpatterns, tasks_urlpatterns
 from apps.opportunities.urls import pipeline_stage_urlpatterns
+from apps.tenants.views import CurrentTenantView
 from core.views import DashboardView, MetaView
 
 urlpatterns = [
@@ -40,4 +41,5 @@ urlpatterns = [
     path("api/tasks/", include(tasks_urlpatterns)),
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
     path("api/meta/", MetaView.as_view(), name="meta"),
+    path("api/tenant/", CurrentTenantView.as_view(), name="current-tenant"),
 ]
