@@ -30,3 +30,5 @@ Thumbs.db
 # Archivos temporales
 *.tmp
 *.bak
+# Archivos estáticos recolectados
+/staticfiles/

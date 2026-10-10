@@ -28,6 +28,14 @@ class User(AbstractUser):
         default=Roles.USUARIO,
         help_text="Rol del usuario dentro del CRM (punto 12 del documento).",
     )
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="users",
+        help_text="Cliente al que pertenece. Define qué datos ve y qué front abre.",
+    )
 
     def __str__(self):
         return self.get_full_name() or self.username

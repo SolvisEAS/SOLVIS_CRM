@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
+from core.tenancy import TenantScopedSerializerMixin
+
 from .models import Contact
 
 
-class ContactSerializer(serializers.ModelSerializer):
+class ContactSerializer(TenantScopedSerializerMixin, serializers.ModelSerializer):
     company_name = serializers.CharField(source="company.name", read_only=True)
     owner_username = serializers.CharField(source="owner.username", read_only=True)
 

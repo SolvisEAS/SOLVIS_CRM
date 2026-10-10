@@ -13,7 +13,9 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from apps.activities.urls import notes_urlpatterns, tasks_urlpatterns
 from apps.opportunities.urls import pipeline_stage_urlpatterns
+from core.views import DashboardView, MetaView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -32,4 +34,10 @@ urlpatterns = [
     path("api/opportunities/", include("apps.opportunities.urls")),
     path("api/pipeline-stages/", include(pipeline_stage_urlpatterns)),
     path("api/leads/", include("apps.leads.urls")),
+
+    # Fase 3 — actividades, y endpoints del front (inicio y catálogos)
+    path("api/notes/", include(notes_urlpatterns)),
+    path("api/tasks/", include(tasks_urlpatterns)),
+    path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("api/meta/", MetaView.as_view(), name="meta"),
 ]

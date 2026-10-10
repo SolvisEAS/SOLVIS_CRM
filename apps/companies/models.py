@@ -8,10 +8,10 @@ tener muchas Oportunidades.
 from django.conf import settings
 from django.db import models
 
-from core.models import TimeStampedModel
+from core.models import TenantScopedModel, TimeStampedModel
 
 
-class Company(TimeStampedModel):
+class Company(TenantScopedModel, TimeStampedModel):
     """Empresa / cuenta comercial."""
 
     name = models.CharField(max_length=255)

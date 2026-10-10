@@ -1,21 +1,25 @@
 from rest_framework import viewsets
 
+from core.tenancy import TenantScopedViewSetMixin
+
 from .models import Opportunity, PipelineStage
 from .serializers import OpportunitySerializer, PipelineStageSerializer
 
 
-class PipelineStageViewSet(viewsets.ModelViewSet):
+class PipelineStageViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     """
     CRUD de etapas del pipeline. Configurable, tal como pide el
-    punto 9 del documento (no hardcodeado).
+    punto 9 del documento (no hardcodeado). Cada cliente tiene las suyas.
     """
 
     queryset = PipelineStage.objects.all()
     serializer_class = PipelineStageSerializer
+    filterset_fields = ("is_active",)
     ordering_fields = ("sequence", "name")
+    pagination_class = None
 
 
-class OpportunityViewSet(viewsets.ModelViewSet):
+class OpportunityViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     """
     CRUD completo de Oportunidades. Permite filtrar por
     ?company=<id>, ?stage=<id>, ?assigned_to=<id>.
@@ -25,12 +29,11 @@ class OpportunityViewSet(viewsets.ModelViewSet):
         "company", "contact", "stage", "assigned_to"
     ).all()
     serializer_class = OpportunitySerializer
-    search_fields = ("name", "description")
+    search_fields = ("name", "description", "company__name")
     filterset_fields = ("company", "contact", "stage", "assigned_to")
-    ordering_fields = ("created_at", "amount", "expected_closing_date")
+    ordering_fields = ("name", "created_at", "amount", "expected_closing_date")
 
-    def perform_create(self, serializer):
+    def get_create_defaults(self, serializer):
         if serializer.validated_data.get("assigned_to") is None:
-            serializer.save(assigned_to=self.request.user)
-        else:
-            serializer.save()
+            return {"assigned_to": self.request.user}
+        return {}

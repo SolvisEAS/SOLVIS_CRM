@@ -1,42 +1,34 @@
 """
 Siembra las etapas por defecto del pipeline comercial (punto 9 del
-documento). Se implementa como management command en lugar de una
-migración de datos, para no atarlo al nombre de una migración de
-esquema que todavía no existe (se genera con makemigrations en cada
-entorno).
+documento) para un cliente, o para todos si no se indica ninguno.
+Los clientes nuevos ya las reciben solas al crearse.
 
 Uso:
-    python manage.py seed_pipeline_stages
+    python manage.py seed_pipeline_stages [--tenant <slug>]
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
-from apps.opportunities.models import PipelineStage
-
-DEFAULT_STAGES = [
-    {"name": "Nueva", "sequence": 1, "probability": 10},
-    {"name": "Calificada", "sequence": 2, "probability": 25},
-    {"name": "Propuesta", "sequence": 3, "probability": 50},
-    {"name": "Negociación", "sequence": 4, "probability": 75},
-    {"name": "Ganada", "sequence": 5, "probability": 100, "is_won": True},
-    {"name": "Perdida", "sequence": 6, "probability": 0, "is_lost": True},
-]
+from apps.opportunities.stages import DEFAULT_STAGES, seed_default_stages
+from apps.tenants.models import Tenant
 
 
 class Command(BaseCommand):
     help = "Crea las etapas de pipeline por defecto (Nueva, Calificada, Propuesta, Negociación, Ganada, Perdida)."
 
-    def handle(self, *args, **options):
-        created_count = 0
-        for stage_data in DEFAULT_STAGES:
-            _, created = PipelineStage.objects.get_or_create(
-                name=stage_data["name"], defaults=stage_data
-            )
-            if created:
-                created_count += 1
+    def add_arguments(self, parser):
+        parser.add_argument("--tenant", help="Slug del cliente (por defecto: todos).")
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Listo. {created_count} etapas nuevas creadas "
-                f"({len(DEFAULT_STAGES) - created_count} ya existían)."
+    def handle(self, *args, **options):
+        tenants = Tenant.objects.all()
+        if options["tenant"]:
+            tenants = tenants.filter(slug=options["tenant"])
+            if not tenants.exists():
+                raise CommandError(f"No existe el cliente '{options['tenant']}'.")
+        for tenant in tenants:
+            created_count = seed_default_stages(tenant)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"{tenant.slug}: {created_count} etapas nuevas creadas "
+                    f"({len(DEFAULT_STAGES) - created_count} ya existían)."
+                )
             )
-        )

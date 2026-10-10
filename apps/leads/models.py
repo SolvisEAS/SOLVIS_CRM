@@ -13,10 +13,10 @@ vincula a un Company/Contact reales.
 from django.conf import settings
 from django.db import models
 
-from core.models import TimeStampedModel
+from core.models import TenantScopedModel, TimeStampedModel
 
 
-class Lead(TimeStampedModel):
+class Lead(TenantScopedModel, TimeStampedModel):
     class Source(models.TextChoices):
         FORMULARIO = "FORMULARIO", "Formulario"
         REDES_SOCIALES = "REDES_SOCIALES", "Redes sociales"
@@ -51,6 +51,22 @@ class Lead(TimeStampedModel):
         null=True,
         blank=True,
         related_name="assigned_leads",
+    )
+    description = models.TextField(blank=True)
+
+    # Resultado de la conversión (Lead -> Empresa + Contacto + Oportunidad).
+    converted_at = models.DateTimeField(null=True, blank=True, editable=False)
+    converted_company = models.ForeignKey(
+        "companies.Company", on_delete=models.SET_NULL, null=True, blank=True,
+        editable=False, related_name="+",
+    )
+    converted_contact = models.ForeignKey(
+        "contacts.Contact", on_delete=models.SET_NULL, null=True, blank=True,
+        editable=False, related_name="+",
+    )
+    converted_opportunity = models.ForeignKey(
+        "opportunities.Opportunity", on_delete=models.SET_NULL, null=True, blank=True,
+        editable=False, related_name="+",
     )
 
     class Meta:

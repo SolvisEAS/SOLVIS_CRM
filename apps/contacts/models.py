@@ -8,10 +8,10 @@ from django.conf import settings
 from django.db import models
 
 from apps.companies.models import Company
-from core.models import TimeStampedModel
+from core.models import TenantScopedModel, TimeStampedModel
 
 
-class Contact(TimeStampedModel):
+class Contact(TenantScopedModel, TimeStampedModel):
     """Persona de contacto dentro de una empresa."""
 
     first_name = models.CharField(max_length=100)

@@ -45,11 +45,13 @@ THIRD_PARTY_APPS = [
 # Apps propias del CRM. A medida que avancemos de fase, este listado
 # va a ir creciendo: products, activities, deliveries, etc.
 LOCAL_APPS = [
+    "apps.tenants",
     "apps.users",
     "apps.companies",
     "apps.contacts",
     "apps.opportunities",
     "apps.leads",
+    "apps.activities",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -149,8 +151,9 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardPagination",
     "PAGE_SIZE": 20,
+    "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
 # ---------------------------------------------------------------------------
@@ -168,9 +171,13 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+    "TOKEN_OBTAIN_SERIALIZER": "apps.users.serializers.TenantTokenObtainPairSerializer",
 }
 
 # ---------------------------------------------------------------------------
 # CORS (para frontend desacoplado)
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
+
+# Orígenes https desde los que se usa el admin de Django (ej: https://crm.solvis.com.py).
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solvis CRM</title>
+<script type="module">
+  // Puerta de entrada común: abre el front del cliente con sesión, o el general.
+  import { session } from "/shared/api.js";
+  location.replace(`/${session.tenant?.frontend || "solvis"}/`);
+</script>
+</head>
+<body></body>
+</html>

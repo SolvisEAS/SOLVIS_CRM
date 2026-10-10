@@ -11,10 +11,10 @@ from django.db import models
 
 from apps.companies.models import Company
 from apps.contacts.models import Contact
-from core.models import TimeStampedModel
+from core.models import TenantScopedModel, TimeStampedModel
 
 
-class PipelineStage(models.Model):
+class PipelineStage(TenantScopedModel):
     """Etapa configurable del pipeline comercial (ej: Nueva, Ganada)."""
 
     name = models.CharField(max_length=100)
@@ -40,7 +40,7 @@ class PipelineStage(models.Model):
         return self.name
 
 
-class Opportunity(TimeStampedModel):
+class Opportunity(TenantScopedModel, TimeStampedModel):
     """Posible negocio o venta (punto 4.4 del documento)."""
 
     name = models.CharField(max_length=255)
