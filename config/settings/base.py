@@ -75,7 +75,8 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # templates/admin: panel de administración con la marca Solvis.
+        "DIRS": [BASE_DIR / "templates"],
         # Se mantiene el motor de templates solo por compatibilidad con el
         # admin de Django. El sistema NO debe depender de templates propios:
         # el frontend consume la API por separado (ver punto 18 del doc).
@@ -133,6 +134,7 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static_src"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

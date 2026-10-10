@@ -18,6 +18,10 @@ from apps.opportunities.urls import pipeline_stage_urlpatterns
 from apps.tenants.views import CurrentTenantView
 from core.views import DashboardView, MetaView
 
+admin.site.site_header = "Solvis CRM · Administración"
+admin.site.site_title = "Solvis CRM"
+admin.site.index_title = "Panel de administración"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
 

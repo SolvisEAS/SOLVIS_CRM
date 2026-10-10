@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% load static %}
+{# Panel de administración con la marca Solvis (colores del front general). #}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Solvis CRM{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="icon" type="image/png" href="{% static 'admin/favicon-32.png' %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html[data-theme="light"], :root {
+    --primary: #0E2959;
+    --secondary: #16367a;
+    --accent: #c4b0f5;
+    --primary-fg: #fff;
+    --header-color: #ffffff;
+    --header-branding-color: #ffffff;
+    --header-bg: #0E2959;
+    --header-link-color: #ffffff;
+    --breadcrumbs-fg: #e6e0fb;
+    --breadcrumbs-link-fg: #ffffff;
+    --breadcrumbs-bg: #7B3FE4;
+    --link-fg: #6a2fd3;
+    --link-hover-color: #0E2959;
+    --link-selected-fg: #6a2fd3;
+    --button-bg: #7B3FE4;
+    --button-hover-bg: #6a2fd3;
+    --default-button-bg: #0E2959;
+    --default-button-hover-bg: #16367a;
+    --selected-row: #f1ebfd;
+    --object-tools-bg: #7B3FE4;
+    --object-tools-hover-bg: #6a2fd3;
+    --font-family-primary: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  #header { background: linear-gradient(90deg, #0E2959, #16367a); box-shadow: 0 2px 8px rgba(14, 41, 89, .25); }
+  #branding h1 { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  #branding h1 img { height: 26px; }
+  #branding h1 small { font-weight: 400; opacity: .7; font-size: .7em; }
+  .button, input[type=submit], input[type=button], .submit-row input, a.button { border-radius: 6px; }
+  .module, .inline-group, #changelist-filter { border-radius: 10px; overflow: hidden; }
+  .module h2, .module caption, .inline-group h2 { background: #0E2959; }
+  .solvis-back { margin-left: 12px; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,.12); color: #fff !important; }
+  body.login { background: radial-gradient(circle at 20% 20%, #23488f 0%, #0E2959 55%, #081a3d 100%); min-height: 100vh; }
+  body.login #container { border-radius: 14px; overflow: hidden; box-shadow: 0 12px 32px rgba(0, 0, 0, .35); margin-top: 12vh; }
+  body.login #header { justify-content: center; }
+  body.login .submit-row input { width: 100%; padding: 10px; background: #7B3FE4; }
+</style>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}" style="text-decoration:none">
+  <h1 id="site-name"><img src="{% static 'admin/isotipo-blanco.png' %}" alt="">Solvis CRM <small>Administración</small></h1>
+</a></div>
+{% if user.is_anonymous %}{% include "admin/color_theme_toggle.html" %}{% endif %}
+{% endblock %}
+
+{% block userlinks %}<a class="solvis-back" href="/">← Ir al CRM</a> / {{ block.super }}{% endblock %}

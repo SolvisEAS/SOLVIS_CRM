@@ -19,7 +19,10 @@ export async function renderSettings(page, tab) {
     page.append(
       h("div.page-header", h("div", h("h1", "Configuración"), h("div.muted", `Ajustes de ${session.tenant?.name || "tu empresa"}`))),
       h("div.settings-home", Object.entries(SECTIONS).map(([key, s]) => h("a.card.settings-card", { href: `#/settings/${key}` },
-        h("div.kpi-icon", icon(s.icon)), h("div", h("h3", s.title), h("div.muted", s.desc))))));
+        h("div.kpi-icon", icon(s.icon)), h("div", h("h3", s.title), h("div.muted", s.desc)))),
+        // Solo el personal de Solvis (is_staff) ve el panel donde se crean clientes nuevos.
+        session.user?.is_staff ? h("a.card.settings-card", { href: "/admin/" },
+          h("div.kpi-icon", icon("settings")), h("div", h("h3", "Panel de administración"), h("div.muted", "Solo para Solvis: clientes, fronts y todos los usuarios del sistema."))) : null));
     return;
   }
 

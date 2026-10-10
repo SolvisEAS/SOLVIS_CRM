@@ -24,10 +24,11 @@ class UserSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "tenant",
+            "is_staff",
             "is_active",
             "date_joined",
         )
-        read_only_fields = ("id", "is_active", "date_joined", "tenant")
+        read_only_fields = ("id", "is_active", "is_staff", "date_joined", "tenant")
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
