@@ -46,4 +46,7 @@ urlpatterns = [
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
     path("api/meta/", MetaView.as_view(), name="meta"),
     path("api/tenant/", CurrentTenantView.as_view(), name="current-tenant"),
+
+    # Panel Solvis: clientes y sus usuarios (solo personal de Solvis)
+    path("api/backoffice/", include("apps.backoffice.urls")),
 ]

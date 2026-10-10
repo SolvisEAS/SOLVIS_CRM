@@ -52,6 +52,7 @@ LOCAL_APPS = [
     "apps.opportunities",
     "apps.leads",
     "apps.activities",
+    "apps.backoffice",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -143,7 +144,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "core.authentication.TenantJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -173,6 +174,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
+    "UPDATE_LAST_LOGIN": True,  # para ver el "último acceso" de cada usuario en el Panel Solvis
     "TOKEN_OBTAIN_SERIALIZER": "apps.users.serializers.TenantTokenObtainPairSerializer",
 }
 

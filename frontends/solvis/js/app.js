@@ -10,6 +10,7 @@ import { renderForm } from "./views/form.js";
 import { renderTasks, openTaskModal } from "./views/tasks.js";
 import { renderSearch } from "./views/search.js";
 import { renderSettings } from "./views/settings.js";
+import { renderBackoffice } from "./views/backoffice.js";
 
 const FRONTEND = "solvis";
 const root = document.getElementById("app");
@@ -117,7 +118,7 @@ function sidebar() {
   const settingsNav = h("div.sb-settings",
     h("a.sb-link.sb-back", { href: "#/home", onclick: (e) => { e.preventDefault(); location.hash = lastAppHash; } }, icon("back"), h("span.sb-label", "Volver al CRM")),
     h("a.sb-settings-title", { href: "#/settings", title: "Configuración" }, icon("settings"), h("span.sb-label", "Configuración")),
-    SETTINGS_NAV.map((g) => h("div.sb-group", h("div.sb-group-title", h("span", g.title)), h("div.sb-items", g.items.map(link)))));
+    [...SETTINGS_NAV, ...(session.user?.is_staff ? [{ title: "Panel Solvis", items: [{ path: "settings/tenants", label: "Clientes", icon: "company" }] }] : [])].map((g) => h("div.sb-group", h("div.sb-group-title", h("span", g.title)), h("div.sb-items", g.items.map(link)))));
   return h("aside.sidebar",
     h("div.sb-top",
       h("a.brand", { href: "#/home" }, h("img", { src: tenant?.logo_url || "img/isotipo-blanco.png", alt: "" }), h("span", "Solvis CRM")),
@@ -206,6 +207,7 @@ async function route() {
     if (section === "home") await renderHome(page);
     else if (section === "tasks") await renderTasks(page, query);
     else if (section === "search") await renderSearch(page, query.get("q") || "");
+    else if (section === "settings" && id === "tenants") await renderBackoffice(page, action);
     else if (section === "settings") await renderSettings(page, id);
     else if (mod && !id) await renderList(page, mod, query);
     else if (mod && id === "new") await renderForm(page, mod, null, query);
