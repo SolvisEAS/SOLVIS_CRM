@@ -2,7 +2,8 @@
 import { api } from "/shared/api.js";
 import { displayValue } from "../fields.js";
 import { icon } from "../icons.js";
-import { MODULES, getStages, recordTitle } from "../modules.js";
+import { MODULES, forgetRecent, getStages, recordTitle, rememberRecent } from "../modules.js";
+import { whatsappUrl } from "../fields.js";
 import { avatar, confirmDialog, datetime, emptyState, h, modal, money, popover, toast } from "../ui.js";
 import { openTaskModal, taskRow } from "./tasks.js";
 
@@ -10,11 +11,17 @@ export async function renderDetail(page, mod, id) {
   const record = await api(`${mod.endpoint}/${id}/`);
   const title = recordTitle(mod, record);
   document.title = `${title} · Solvis CRM`;
+  rememberRecent(mod, record);
   const reload = () => { page.replaceChildren(); return renderDetail(page, mod, id); };
 
   // ---- Cabecera ----
   const moreBtn = h("button.btn.btn-icon", { title: "Más acciones", onclick: () => popover(moreBtn, [
     h("button.item", { onclick: () => openTaskModal({ preset: { related_type: mod.relatedType, related_id: record.id }, onSaved: reload }) }, icon("task"), "Nueva tarea"),
+    h("button.item", { onclick: () => {
+      // Clonar (como en Zoho): abre el formulario con los mismos datos.
+      try { sessionStorage.setItem("solvis_crm_clone", JSON.stringify({ path: mod.path, record })); } catch {}
+      location.hash = `#/${mod.path}/new?clone=1`;
+    } }, icon("copy"), "Clonar"),
     h("div.sep"),
     h("button.item", { style: { color: "var(--danger)" }, onclick: remove }, icon("trash"), "Eliminar"),
   ], { align: "right" }) }, icon("more"));
@@ -27,17 +34,23 @@ export async function renderDetail(page, mod, id) {
       h("h1", title),
       h("div.muted", mod.subtitle(record) || "")),
     h("div.actions",
+      record.phone ? h("a.btn.btn-wa", { href: whatsappUrl(record.phone), target: "_blank", rel: "noopener", title: `WhatsApp ${record.phone}` }, icon("whatsapp"), "WhatsApp") : null,
+      record.email ? h("a.btn", { href: `mailto:${record.email}`, title: record.email }, icon("mail"), "Correo") : null,
       mod.endpoint === "leads" && !converted ? h("button.btn.btn-primary", { onclick: () => convertLead(record) }, icon("convert"), "Convertir") : null,
       h("a.btn", { href: `#/${mod.path}/${record.id}/edit` }, icon("edit"), "Editar"),
       moreBtn));
 
   async function remove() {
-    if (!(await confirmDialog(`Eliminar ${mod.singular.toLowerCase()}`, `¿Eliminar "${title}"? Esta acción no se puede deshacer.`))) return;
+    const warning = mod.endpoint === "companies"
+      ? `¿Eliminar "${title}"? También se eliminan sus ${record.contacts_count} contactos y ${record.opportunities_count} oportunidades. Esta acción no se puede deshacer.`
+      : `¿Eliminar "${title}"? Esta acción no se puede deshacer.`;
+    if (!(await confirmDialog(`Eliminar ${mod.singular.toLowerCase()}`, warning))) return;
     try {
       await api(`${mod.endpoint}/${record.id}/`, { method: "DELETE" });
+      forgetRecent(mod.path, record.id);
       toast(`${mod.singular} ${mod.gender === "f" ? "eliminada" : "eliminado"}`, "success");
       location.hash = `#/${mod.path}`;
-    } catch (ex) { toast(ex.status === 500 || ex.status === 400 ? "No se puede eliminar: tiene registros asociados." : ex.message, "error"); }
+    } catch (ex) { toast(ex.message, "error"); }
   }
 
   // ---- Barra de etapas (solo oportunidades) ----
@@ -64,7 +77,9 @@ export async function renderDetail(page, mod, id) {
   }
   const system = h("section.card", h("div.card-header", h("h3", "Información del sistema")), h("div.card-body", h("div.details",
     h("div.detail-item", h("div.k", "Creado"), h("div.v", datetime(record.created_at))),
-    h("div.detail-item", h("div.k", "Modificado"), h("div.v", datetime(record.updated_at))))));
+    h("div.detail-item", h("div.k", "Modificado"), h("div.v", datetime(record.updated_at))),
+    record.expected_revenue !== undefined ? h("div.detail-item", h("div.k", "Ingreso esperado"), h("div.v", money(record.expected_revenue), h("span.muted.small", ` (monto × ${record.probability}%)`))) : null,
+    record.closed_at ? h("div.detail-item", h("div.k", "Cerrada"), h("div.v", datetime(record.closed_at))) : null)));
   if (converted) {
     infoSections.unshift(h("section.card", { style: { borderColor: "var(--accent)" } }, h("div.card-body.row",
       icon("convert"), h("strong", "Lead convertido"), h("span.muted", datetime(record.converted_at)), h("span.grow"),
@@ -124,6 +139,14 @@ export async function renderDetail(page, mod, id) {
 
 async function relatedList(rel, mod, record, reload) {
   if (rel === "notes") return notesCard(mod, record);
+  if (rel === "timeline") {
+    const data = await api("timeline/", { params: { related_type: mod.relatedType, related_id: record.id, page_size: 100 } });
+    const card = h("section.card",
+      h("div.card-header", icon("history"), h("h3", "Historial"), h("span.muted", `(${data.count})`)),
+      data.results.length ? h("ul.timeline", data.results.map((e) => h(`li.${e.verb}`,
+        h("div", e.description), h("div.when", `${e.user_name} · ${datetime(e.created_at)}`)))) : emptyState("Sin movimientos todavía.", "history"));
+    return { card, count: data.count, label: "Historial", ic: "history" };
+  }
   if (rel === "tasks") {
     const data = await api("tasks/", { params: { related_type: mod.relatedType, related_id: record.id, page_size: 50 } });
     const card = h("section.card",

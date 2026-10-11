@@ -7,13 +7,21 @@ rutas dentro de /api/<recurso>/.
 """
 from django.contrib import admin
 from django.urls import include, path
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import (
     TokenBlacklistView,
     TokenObtainPairView,
     TokenRefreshView,
 )
 
-from apps.activities.urls import notes_urlpatterns, tasks_urlpatterns
+
+class ThrottledLoginView(TokenObtainPairView):
+    """Login con límite de intentos por IP, para frenar ataques de contraseña."""
+
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "login"
+
+from apps.activities.urls import notes_urlpatterns, tasks_urlpatterns, timeline_urlpatterns
 from apps.opportunities.urls import pipeline_stage_urlpatterns
 from apps.tenants.views import CurrentTenantView
 from core.views import DashboardView, MetaView
@@ -26,7 +34,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     # Autenticación JWT: /api/auth/login/, /api/auth/refresh/, /api/auth/logout/
-    path("api/auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/login/", ThrottledLoginView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/auth/logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
 
@@ -43,6 +51,7 @@ urlpatterns = [
     # Fase 3 — actividades, y endpoints del front (inicio y catálogos)
     path("api/notes/", include(notes_urlpatterns)),
     path("api/tasks/", include(tasks_urlpatterns)),
+    path("api/timeline/", include(timeline_urlpatterns)),
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
     path("api/meta/", MetaView.as_view(), name="meta"),
     path("api/tenant/", CurrentTenantView.as_view(), name="current-tenant"),

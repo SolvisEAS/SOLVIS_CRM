@@ -1,7 +1,7 @@
 """Endpoints transversales: tablero de inicio y catálogos para el front."""
-from datetime import date
 
 from django.db.models import Count, Q, Sum
+from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -48,12 +48,16 @@ class DashboardView(APIView):
         if tenant_id is None:
             return Response({"detail": "El usuario no pertenece a ningún cliente."}, status=403)
 
-        today = date.today()
+        today = timezone.localdate()
         month_start = today.replace(day=1)
         leads = Lead.objects.filter(tenant_id=tenant_id)
         opps = Opportunity.objects.filter(tenant_id=tenant_id)
         open_opps = opps.filter(stage__is_won=False, stage__is_lost=False)
-        won_month = opps.filter(stage__is_won=True, updated_at__date__gte=month_start)
+        closed_month = opps.filter(closed_at__date__gte=month_start)
+        won_month = closed_month.filter(stage__is_won=True)
+        lost_month = closed_month.filter(stage__is_lost=True)
+        total_leads = leads.count()
+        converted = leads.filter(status=Lead.Status.CONVERTIDO).count()
 
         pipeline = (
             PipelineStage.objects.filter(tenant_id=tenant_id, is_active=True)
@@ -67,7 +71,7 @@ class DashboardView(APIView):
         return Response(
             {
                 "totals": {
-                    "leads": leads.count(),
+                    "leads": total_leads,
                     "leads_new": leads.filter(status=Lead.Status.NUEVO).count(),
                     "companies": Company.objects.filter(tenant_id=tenant_id).count(),
                     "contacts": Contact.objects.filter(tenant_id=tenant_id).count(),
@@ -75,6 +79,9 @@ class DashboardView(APIView):
                     "open_amount": open_opps.aggregate(s=Sum("amount"))["s"] or 0,
                     "won_month_count": won_month.count(),
                     "won_month_amount": won_month.aggregate(s=Sum("amount"))["s"] or 0,
+                    "lost_month_count": lost_month.count(),
+                    "conversion_rate": round(converted * 100 / total_leads) if total_leads else 0,
+                    "leads_converted": converted,
                     "tasks_pending": my_tasks.count(),
                     "tasks_overdue": my_tasks.filter(due_date__lt=today).count(),
                 },

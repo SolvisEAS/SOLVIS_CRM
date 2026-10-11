@@ -1,7 +1,7 @@
 // Inicio: tablero con números clave, pipeline y pendientes (como el Home de Zoho).
 import { api, session } from "/shared/api.js";
 import { icon } from "../icons.js";
-import { getMeta } from "../modules.js";
+import { getMeta, getRecent } from "../modules.js";
 import { badge, date, emptyState, h, relDays, shortMoney } from "../ui.js";
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -10,6 +10,7 @@ export async function renderHome(page) {
   document.title = "Inicio · Solvis CRM";
   const [d, meta] = await Promise.all([api("dashboard/"), getMeta()]);
   const t = d.totals;
+  const recents = getRecent().slice(0, 6);
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Buen día" : hour < 19 ? "Buenas tardes" : "Buenas noches";
   const label = (key, v) => meta[key]?.find((c) => c.value === v)?.label || v;
@@ -36,8 +37,9 @@ export async function renderHome(page) {
     h("div.kpis",
       kpi("lead", "", "Leads nuevos", t.leads_new, plural(t.leads, "lead en total", "leads en total"), "#/leads?status=NUEVO"),
       kpi("deal", "blue", "Pipeline abierto", shortMoney(t.open_amount), plural(t.open_opportunities, "oportunidad abierta", "oportunidades abiertas"), "#/deals?view=kanban"),
-      kpi("trophy", "green", "Ganado este mes", shortMoney(t.won_month_amount), plural(t.won_month_count, "oportunidad", "oportunidades"), "#/deals"),
+      kpi("trophy", "green", "Ganado este mes", shortMoney(t.won_month_amount), `${plural(t.won_month_count, "ganada", "ganadas")} · ${plural(t.lost_month_count, "perdida", "perdidas")}`, "#/deals"),
       kpi("task", "amber", "Mis tareas", t.tasks_pending, t.tasks_overdue ? plural(t.tasks_overdue, "vencida", "vencidas") : "Ninguna vencida", "#/tasks"),
+      kpi("convert", "", "Conversión de leads", `${t.conversion_rate}%`, plural(t.leads_converted, "lead convertido", "leads convertidos"), "#/leads?status=CONVERTIDO"),
     ),
     h("div.dash-grid",
       h("section.card.span-8",
@@ -60,6 +62,10 @@ export async function renderHome(page) {
         list(d.closing_this_month, (o) => h("li",
           h("div.grow", h("a.title", { href: `#/deals/${o.id}` }, o.name), h("div.muted.small", `${o.company__name} · ${date(o.expected_closing_date)}`)),
           h("strong.nowrap", shortMoney(o.amount))), "Nada previsto para este mes.")),
+      recents.length ? h("section.card.span-4",
+        h("div.card-header", icon("history"), h("h3", "Vistos recientemente")),
+        h("ul.mini-list", recents.map((r) => h("li", icon(r.icon),
+          h("div.grow", h("a.title", { href: `#/${r.path}/${r.id}` }, r.title), h("div.muted.small", r.singular)))))) : null,
       h("section.card.span-4",
         h("div.card-header", icon("lead"), h("h3", "Leads recientes"), h("a.small", { href: "#/leads", style: { marginLeft: "auto" } }, "Ver todos")),
         list(d.recent_leads, (l) => h("li",

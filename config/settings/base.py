@@ -157,6 +157,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {"login": "15/min"},
+    "NUM_PROXIES": 1,  # detrás de Nginx: la IP real viene en X-Forwarded-For
 }
 
 # ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.activities.timeline import log_event
 from apps.companies.models import Company
 from apps.contacts.models import Contact
 from apps.opportunities.models import Opportunity, PipelineStage
@@ -36,6 +37,9 @@ class LeadViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     search_fields = ("title", "name", "email", "phone", "company")
     filterset_fields = ("status", "source", "assigned_to")
     ordering_fields = ("created_at", "status", "name", "company")
+    timeline_type = "lead"
+    tracked_fields = {"status": "Estado", "assigned_to": "Propietario", "source": "Origen",
+                      "title": "Título", "company": "Empresa", "email": "Correo", "phone": "Teléfono"}
 
     def get_create_defaults(self, serializer):
         if serializer.validated_data.get("assigned_to") is None:
@@ -85,6 +89,14 @@ class LeadViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
             lead.converted_contact = contact
             lead.converted_opportunity = opportunity
             lead.save()
+
+            created = ", ".join(filter(None, [f"empresa {company.name}", f"contacto {contact}",
+                                              f"oportunidad {opportunity.name}" if opportunity else None]))
+            log_event(tenant_id, "lead", lead.id, "converted", f"Convirtió el lead: {created}", request.user)
+            log_event(tenant_id, "contact", contact.id, "created", f"Creado al convertir el lead {lead.name}", request.user)
+            if opportunity:
+                log_event(tenant_id, "opportunity", opportunity.id, "created",
+                          f"Creada al convertir el lead {lead.name}", request.user)
 
         return Response(
             {

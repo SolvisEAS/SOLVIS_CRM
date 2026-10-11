@@ -6,10 +6,11 @@ Uso:
     python manage.py seed_demo_data --tenant demo
 """
 import random
-from datetime import date, timedelta
+from datetime import timedelta
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from apps.activities.models import Note, Task
 from apps.companies.models import Company
@@ -70,7 +71,7 @@ class Command(BaseCommand):
         rng = random.Random(42)
         owner = User.objects.filter(tenant=tenant).order_by("id").first()
         stages = list(PipelineStage.objects.filter(tenant=tenant).order_by("sequence"))
-        today = date.today()
+        today = timezone.localdate()
 
         companies, contacts = [], []
         for i, (name, city, domain) in enumerate(COMPANIES):

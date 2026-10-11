@@ -67,3 +67,26 @@ class Task(TenantScopedModel, TimeStampedModel):
 
     def __str__(self):
         return self.title
+
+
+class TimelineEvent(TenantScopedModel):
+    """Historial de un registro (como el "Timeline" de Zoho): quién hizo qué y cuándo."""
+
+    related_type = models.CharField(max_length=20, choices=RelatedType.choices)
+    related_id = models.PositiveBigIntegerField()
+    verb = models.CharField(max_length=30)
+    description = models.CharField(max_length=500)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Evento del historial"
+        verbose_name_plural = "Historial"
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["tenant", "related_type", "related_id"])]
+
+    def __str__(self):
+        return self.description

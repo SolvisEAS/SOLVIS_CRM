@@ -27,6 +27,9 @@ class CompanyViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     search_fields = ("name", "email", "city", "country")
     filterset_fields = ("owner", "country", "city")
     ordering_fields = ("name", "city", "country", "created_at")
+    timeline_type = "company"
+    tracked_fields = {"name": "Nombre", "owner": "Propietario", "phone": "Teléfono",
+                      "email": "Correo", "website": "Sitio web", "city": "Ciudad"}
 
     def get_create_defaults(self, serializer):
         # Si no se especifica owner explícitamente, se asigna quien crea.

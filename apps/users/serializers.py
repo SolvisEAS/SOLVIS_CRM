@@ -41,11 +41,20 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "full_name", "role", "is_active")
+        fields = ("id", "username", "email", "first_name", "last_name", "full_name", "role", "is_active", "last_login")
         read_only_fields = fields
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
+
+
+class UserAdminUpdateSerializer(serializers.ModelSerializer):
+    """Lo que el administrador de un cliente puede cambiar de sus usuarios."""
+
+    class Meta:
+        model = User
+        fields = ("id", "email", "first_name", "last_name", "role", "is_active")
+        read_only_fields = ("id",)
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

@@ -45,7 +45,7 @@ export const MODULES = {
       { name: "source", label: "Origen", choices: "lead_source" },
       { name: "assigned_to", label: "Propietario", users: true },
     ],
-    related: ["notes", "tasks"],
+    related: ["notes", "tasks", "timeline"],
     relatedType: "lead",
   },
   contacts: {
@@ -73,7 +73,7 @@ export const MODULES = {
       { name: "created_at", label: "Creado", type: "date", sort: "created_at" },
     ],
     filters: [{ name: "owner", label: "Propietario", users: true }],
-    related: ["opportunities", "notes", "tasks"],
+    related: ["opportunities", "notes", "tasks", "timeline"],
     relatedType: "contact",
   },
   companies: {
@@ -104,7 +104,7 @@ export const MODULES = {
       { name: "owner_username", label: "Propietario" },
     ],
     filters: [{ name: "owner", label: "Propietario", users: true }],
-    related: ["contacts", "opportunities", "notes", "tasks"],
+    related: ["contacts", "opportunities", "notes", "tasks", "timeline"],
     relatedType: "company",
   },
   opportunities: {
@@ -140,7 +140,7 @@ export const MODULES = {
       { name: "stage", label: "Etapa", stages: true },
       { name: "assigned_to", label: "Propietario", users: true },
     ],
-    related: ["notes", "tasks"],
+    related: ["notes", "tasks", "timeline"],
     relatedType: "opportunity",
     kanban: true,
   },
@@ -163,3 +163,19 @@ export async function choiceLabel(key, value) {
   return meta[key]?.find((c) => c.value === value)?.label || value;
 }
 export function resetCaches() { metaP = usersP = stagesP = null; }
+
+// ---------- Vistos recientemente (como el "Recientes" de Zoho), por navegador ----------
+const RECENT_KEY = "solvis_crm_recent";
+export function rememberRecent(mod, record) {
+  try {
+    const item = { path: mod.path, id: record.id, title: recordTitle(mod, record), icon: mod.icon, singular: mod.singular };
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]").filter((r) => !(r.path === item.path && r.id === item.id));
+    localStorage.setItem(RECENT_KEY, JSON.stringify([item, ...list].slice(0, 8)));
+  } catch {}
+}
+export function getRecent() {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); } catch { return []; }
+}
+export function forgetRecent(path, id) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(getRecent().filter((r) => !(r.path === path && String(r.id) === String(id))))); } catch {}
+}

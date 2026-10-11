@@ -1,4 +1,7 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+from core.permissions import IsGerenteOrAdministrador
 
 from core.tenancy import TenantScopedViewSetMixin
 
@@ -18,6 +21,11 @@ class PipelineStageViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     ordering_fields = ("sequence", "name")
     pagination_class = None
 
+    def get_permissions(self):
+        if self.request.method in ("GET", "HEAD", "OPTIONS"):
+            return [IsAuthenticated()]
+        return [IsGerenteOrAdministrador()]
+
 
 class OpportunityViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     """
@@ -32,6 +40,9 @@ class OpportunityViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     search_fields = ("name", "description", "company__name")
     filterset_fields = ("company", "contact", "stage", "assigned_to")
     ordering_fields = ("name", "created_at", "amount", "expected_closing_date")
+    timeline_type = "opportunity"
+    tracked_fields = {"stage": "Etapa", "amount": "Monto", "expected_closing_date": "Fecha de cierre",
+                      "assigned_to": "Propietario", "probability": "Probabilidad", "contact": "Contacto"}
 
     def get_create_defaults(self, serializer):
         if serializer.validated_data.get("assigned_to") is None:

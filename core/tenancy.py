@@ -25,15 +25,41 @@ class TenantScopedViewSetMixin:
             return qs.none()
         return qs.filter(tenant_id=tenant_id)
 
+    # Historial: las vistas que lo definen registran altas y cambios de estos campos.
+    timeline_type = None
+    tracked_fields = {}  # campo -> etiqueta en español
+
     def get_create_defaults(self, serializer):
         """Valores extra al crear (ej: owner = quien crea). Lo sobrescriben las vistas."""
         return {}
 
     def perform_create(self, serializer):
-        serializer.save(
+        instance = serializer.save(
             tenant_id=user_tenant_id(self.request.user),
             **self.get_create_defaults(serializer),
         )
+        if self.timeline_type:
+            from apps.activities.timeline import log_event
+
+            log_event(instance.tenant_id, self.timeline_type, instance.pk, "created",
+                      "Creó el registro", self.request.user)
+
+    def perform_update(self, serializer):
+        if not self.timeline_type:
+            return serializer.save()
+        from apps.activities.timeline import log_event, snapshot
+
+        before = snapshot(serializer.instance, self.tracked_fields)
+        instance = serializer.save()
+        after = snapshot(instance, self.tracked_fields)
+        changes = [
+            f"{label}: {before[name]} → {after[name]}"
+            for name, label in self.tracked_fields.items() if before[name] != after[name]
+        ]
+        if changes:
+            log_event(instance.tenant_id, self.timeline_type, instance.pk, "updated",
+                      "Cambió " + "; ".join(changes), self.request.user)
+        return instance
 
 
 class TenantScopedSerializerMixin:

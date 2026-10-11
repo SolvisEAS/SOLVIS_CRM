@@ -26,6 +26,7 @@ class OpportunitySerializer(TenantScopedSerializerMixin, serializers.ModelSerial
     contact_name = serializers.SerializerMethodField()
     stage_name = serializers.CharField(source="stage.name", read_only=True)
     stage_color = serializers.CharField(source="stage.color", read_only=True)
+    expected_revenue = serializers.SerializerMethodField()
     assigned_to_username = serializers.CharField(
         source="assigned_to.username", read_only=True
     )
@@ -45,13 +46,19 @@ class OpportunitySerializer(TenantScopedSerializerMixin, serializers.ModelSerial
             "stage",
             "stage_name",
             "stage_color",
+            "expected_revenue",
+            "closed_at",
             "assigned_to",
             "assigned_to_username",
             "description",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at", "closed_at")
+
+    def get_expected_revenue(self, obj):
+        """Monto ponderado por la probabilidad (el "Ingreso esperado" de Zoho)."""
+        return round(float(obj.amount) * obj.probability / 100, 2)
 
     def get_contact_name(self, obj):
         if obj.contact:

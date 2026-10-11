@@ -1,7 +1,15 @@
 // Cómo se muestra y se edita cada tipo de campo.
-import { api } from "/shared/api.js";
+import { api, session } from "/shared/api.js";
+import { icon } from "./icons.js";
 import { MODULES, getMeta, getStages, getUsers, recordTitle } from "./modules.js";
 import { badge, date, debounce, h, money } from "./ui.js";
+
+/** Enlace de WhatsApp; los números locales de Paraguay (09…) se pasan a +595. */
+export function whatsappUrl(phone) {
+  let digits = String(phone).replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = `595${digits.slice(1)}`;
+  return `https://wa.me/${digits}`;
+}
 
 /** Valor para mostrar en tablas y en el detalle. */
 export async function displayValue(field, record) {
@@ -15,7 +23,9 @@ export async function displayValue(field, record) {
     case "date": return date(v);
     case "url": return v ? h("a", { href: v, target: "_blank", rel: "noopener" }, v.replace(/^https?:\/\//, "")) : "";
     case "email": return v ? h("a", { href: `mailto:${v}` }, v) : "";
-    case "phone": return v ? h("a", { href: `tel:${v.replace(/\s/g, "")}` }, v) : "";
+    case "phone": return v ? h("span.row", { style: { gap: "6px", display: "inline-flex" } },
+      h("a", { href: `tel:${v.replace(/\s/g, "")}` }, v),
+      h("a.wa-link", { href: whatsappUrl(v), target: "_blank", rel: "noopener", title: "Escribir por WhatsApp" }, icon("whatsapp"))) : "";
     case "stage": {
       const stages = await getStages();
       const s = stages.find((x) => x.id === (record.stage ?? v));
@@ -62,8 +72,10 @@ export async function inputFor(field, record) {
     }
     case "user": {
       const users = await getUsers();
-      const el = h("select.select", base, h("option", { value: "" }, "— Yo —"),
-        users.map((u) => h("option", { value: u.id, selected: u.id === value }, u.full_name)));
+      // Al crear se propone a quien está cargando el registro, como en Zoho.
+      const current = record ? value : session.user?.id;
+      const el = h("select.select", base, h("option", { value: "" }, "— Sin asignar —"),
+        users.map((u) => h("option", { value: u.id, selected: u.id === current }, u.full_name)));
       return { el, get: () => (el.value ? Number(el.value) : null) };
     }
     case "stage": {

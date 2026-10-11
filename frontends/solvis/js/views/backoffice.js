@@ -113,7 +113,7 @@ async function renderTenant(page, id) {
         h("tbody", userRows))) : emptyState("Este cliente todavía no tiene usuarios. Creá el primero.")));
 }
 
-function showPassword(title, user, password) {
+export function showPassword(title, user, password) {
   const box = h("input.input", { value: password, readonly: true, style: { fontFamily: "monospace", fontSize: "16px", letterSpacing: ".04em" } });
   const m = modal({
     title,
@@ -128,7 +128,7 @@ function showPassword(title, user, password) {
   });
 }
 
-function passwordModal(u) {
+export function passwordModal(u, base = "backoffice/users") {
   const mode = h("select.select", h("option", { value: "gen" }, "Generar una automáticamente"), h("option", { value: "typed" }, "Escribirla yo"));
   const typed = h("input.input.hidden", { type: "text", placeholder: "Mínimo 8 caracteres", autocomplete: "off" });
   const logout = h("input.checkbox", { type: "checkbox", checked: true });
@@ -139,7 +139,7 @@ function passwordModal(u) {
       h("label.row", logout, "Cerrar sus sesiones abiertas")],
     footer: [h("button.btn", { onclick: () => m.close() }, "Cancelar"), h("button.btn.btn-primary", { onclick: async () => {
       try {
-        const r = await api(`backoffice/users/${u.id}/set-password/`, { method: "POST", body: { password: mode.value === "typed" ? typed.value : "", logout: logout.checked } });
+        const r = await api(`${base}/${u.id}/set-password/`, { method: "POST", body: { password: mode.value === "typed" ? typed.value : "", logout: logout.checked } });
         m.close();
         r.generated_password ? showPassword("Contraseña nueva", u.username, r.generated_password) : toast("Contraseña cambiada", "success");
       } catch (ex) { toast(ex.message, "error"); }

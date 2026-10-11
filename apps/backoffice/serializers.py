@@ -13,6 +13,8 @@ class BackofficeTenantSerializer(serializers.ModelSerializer):
     companies_count = serializers.IntegerField(read_only=True)
     leads_count = serializers.IntegerField(read_only=True)
     opportunities_count = serializers.IntegerField(read_only=True)
+    # Con default explícito: un formulario que no manda el campo no lo deja inactivo.
+    is_active = serializers.BooleanField(default=True)
 
     class Meta:
         model = Tenant
@@ -32,6 +34,7 @@ class BackofficeTenantSerializer(serializers.ModelSerializer):
 class BackofficeUserSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, min_length=8)
+    is_active = serializers.BooleanField(default=True)
 
     class Meta:
         model = User

@@ -27,6 +27,18 @@ class BusinessRuleError(Exception):
 
 
 def custom_exception_handler(exc, context):
+    from django.db.models import ProtectedError
+
+    if isinstance(exc, ProtectedError):
+        from rest_framework import status
+        from rest_framework.response import Response
+
+        names = sorted({obj._meta.verbose_name_plural.lower() for obj in exc.protected_objects})
+        return Response(
+            {"detail": f"No se puede eliminar porque tiene {', '.join(names)} asociadas.", "code": "protected"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     response = drf_exception_handler(exc, context)
 
     if isinstance(exc, BusinessRuleError):

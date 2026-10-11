@@ -43,3 +43,26 @@ python manage.py seed_demo_data --tenant demo
 `deploy/nginx-crm.conf` (fronts + API). Variables nuevas en el entorno:
 `CSRF_TRUSTED_ORIGINS` (ej: `https://crm.solvis.com.py`) y
 `SECURE_SSL_REDIRECT` (`False` cuando Nginx ya redirige a https).
+
+## Mejoras posteriores (estilo Zoho CRM)
+
+- **Historial** de cada registro (`GET /api/timeline/`): altas, cambios de
+  etapa/estado/propietario/monto, conversiones, notas y tareas.
+- **Panel Solvis** (`/api/backoffice/`, solo `is_staff`): clientes, suspender,
+  usuarios, contraseñas y cierre de sesiones. Un cliente suspendido queda
+  afuera aunque tenga una sesión abierta.
+- El **administrador de cada cliente** gestiona sus usuarios
+  (`PATCH /api/users/{id}/`, `set-password/`, `logout/`) y cada usuario cambia
+  su propia contraseña (`POST /api/users/me/password/`).
+- Oportunidades: `closed_at` (fecha de cierre real) e `expected_revenue`
+  (monto × probabilidad). Borrar una etapa en uso devuelve un error claro.
+- Login con límite de intentos (15 por minuto por IP).
+- Front: botones de WhatsApp y correo, acciones masivas, exportar a CSV,
+  aviso de duplicados, clonar, vistos recientemente, contadores en el menú,
+  atajo `/` para buscar y "Cambiar mi contraseña".
+
+## Pruebas
+
+```bash
+python manage.py test tests --settings=config.settings.test
+```

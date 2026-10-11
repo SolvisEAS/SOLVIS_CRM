@@ -3,7 +3,7 @@ import { api } from "/shared/api.js";
 import { displayValue } from "../fields.js";
 import { icon } from "../icons.js";
 import { MODULES, getMeta, getStages, getUsers, recordTitle } from "../modules.js";
-import { confirmDialog, debounce, emptyState, h, spinner, toast } from "../ui.js";
+import { confirmDialog, debounce, emptyState, h, popover, spinner, toast } from "../ui.js";
 import { renderKanban } from "./kanban.js";
 
 const PAGE_SIZES = [20, 50, 100];
@@ -79,6 +79,8 @@ export async function renderList(page, mod, query) {
     const params = { page: state.page, page_size: state.pageSize, ordering: state.ordering, search: state.search, ...state.filters };
     const data = await api(`${mod.endpoint}/`, { params });
     countEl.textContent = data.count;
+    state.rows = data.results;
+    state.count = data.count;
     state.selected.clear();
     drawToolbar();
     if (!data.results.length) {
@@ -130,9 +132,50 @@ export async function renderList(page, mod, query) {
     toolbar.classList.toggle("selection-bar", n > 0);
     toolbar.replaceChildren(...(n
       ? [h("strong", `${n} seleccionado${n > 1 ? "s" : ""}`), h("span.grow"),
+         ...massUpdateButtons(),
+         h("button.btn.btn-sm", { onclick: () => exportCsv(mod, state.rows.filter((r) => state.selected.has(r.id)), meta, stages) }, icon("download"), "Exportar"),
          h("button.btn.btn-sm.btn-danger", { onclick: bulkDelete }, icon("trash"), "Eliminar")]
       : [h("span.muted", `Todos ${mod.gender === "f" ? "las" : "los"} ${mod.plural.toLowerCase()}`), h("span.grow"),
+         h("button.btn.btn-sm.btn-ghost", { onclick: exportAll, title: "Exportar a CSV (Excel)" }, icon("download"), "Exportar"),
          h("button.btn.btn-sm.btn-ghost", { onclick: load, title: "Actualizar" }, icon("refresh"))]));
+  }
+
+  // Actualización masiva (como el "Mass Update" de Zoho): propietario, estado o etapa.
+  function massUpdateButtons() {
+    const ownerField = mod.sections.flatMap((s) => s.fields).find((f) => f.type === "user");
+    const options = [];
+    if (ownerField) options.push({ label: "Propietario", field: ownerField.name, choices: users.map((u) => ({ value: u.id, label: u.full_name })) });
+    if (mod.endpoint === "leads") options.push({ label: "Estado", field: "status", choices: meta.lead_status.filter((c) => c.value !== "CONVERTIDO") });
+    if (mod.endpoint === "opportunities") options.push({ label: "Etapa", field: "stage", choices: stages.filter((s) => s.is_active).map((s) => ({ value: s.id, label: s.name, probability: s.probability })) });
+    return options.map((opt) => {
+      const btn = h("button.btn.btn-sm", { onclick: () => popover(btn, [
+        h("div.group-title", `Cambiar ${opt.label.toLowerCase()} a…`),
+        ...opt.choices.map((c) => h("button.item", { onclick: () => massUpdate(opt, c) }, c.label)),
+      ]) }, `Cambiar ${opt.label.toLowerCase()}`);
+      return btn;
+    });
+  }
+
+  async function massUpdate(opt, choice) {
+    const body = { [opt.field]: choice.value };
+    if (opt.field === "stage") body.probability = choice.probability;
+    let failed = 0;
+    for (const id of state.selected) {
+      try { await api(`${mod.endpoint}/${id}/`, { method: "PATCH", body }); } catch { failed++; }
+    }
+    failed ? toast(`${failed} no se pudieron actualizar.`, "error") : toast(`${opt.label}: ${choice.label} (${state.selected.size} registros)`, "success");
+    load();
+  }
+
+  async function exportAll() {
+    const rows = [];
+    const params = { page_size: 200, ordering: state.ordering, search: state.search, ...state.filters };
+    for (let page = 1; page <= 25; page++) {
+      const data = await api(`${mod.endpoint}/`, { params: { ...params, page } });
+      rows.push(...data.results);
+      if (!data.next) break;
+    }
+    exportCsv(mod, rows, meta, stages);
   }
 
   async function bulkDelete() {
@@ -147,4 +190,28 @@ export async function renderList(page, mod, query) {
   }
 
   return load();
+}
+
+/** Descarga un CSV que Excel abre bien (separador ";" y acentos con BOM). */
+function exportCsv(mod, rows, meta, stages) {
+  if (!rows.length) return toast("No hay registros para exportar.", "error");
+  const label = (key, v) => meta[key]?.find((c) => c.value === v)?.label || v || "";
+  const value = (c, r) => {
+    if (c.name === "_title") return recordTitle(mod, r);
+    const v = r[c.name];
+    if (c.type === "badge" || c.type === "choice") return label(c.choices, v);
+    if (c.type === "stage") return r.stage_name || stages?.find((s) => s.id === r.stage)?.name || "";
+    if (c.type === "money") return String(Number(v || 0)).replace(".", ",");
+    if (c.type === "date") return v ? String(v).slice(0, 10) : "";
+    return v ?? "";
+  };
+  const extra = ["email", "phone"].filter((k) => rows[0][k] !== undefined && !mod.columns.some((c) => c.name === k));
+  const header = [...mod.columns.map((c) => c.label), ...extra.map((k) => (k === "email" ? "Correo" : "Teléfono"))];
+  const lines = rows.map((r) => [...mod.columns.map((c) => value(c, r)), ...extra.map((k) => r[k] || "")]);
+  const csv = [header, ...lines].map((line) => line.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const a = h("a", { href: URL.createObjectURL(blob), download: `${mod.plural.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv` });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast(`${rows.length} registros exportados`, "success");
 }

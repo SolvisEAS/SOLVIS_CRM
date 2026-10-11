@@ -14,6 +14,9 @@ class ContactViewSet(TenantScopedViewSetMixin, viewsets.ModelViewSet):
     search_fields = ("first_name", "last_name", "email", "phone", "company__name")
     filterset_fields = ("company", "owner")
     ordering_fields = ("last_name", "first_name", "created_at")
+    timeline_type = "contact"
+    tracked_fields = {"company": "Empresa", "owner": "Propietario", "position": "Cargo",
+                      "email": "Correo", "phone": "Teléfono"}
 
     def get_create_defaults(self, serializer):
         if serializer.validated_data.get("owner") is None:

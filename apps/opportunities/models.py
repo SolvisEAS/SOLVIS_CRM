@@ -70,6 +70,10 @@ class Opportunity(TenantScopedModel, TimeStampedModel):
         related_name="assigned_opportunities",
     )
     description = models.TextField(blank=True)
+    closed_at = models.DateTimeField(
+        null=True, blank=True, editable=False,
+        help_text="Cuándo pasó a una etapa Ganada o Perdida (para los números del mes).",
+    )
 
     class Meta:
         verbose_name = "Oportunidad"
@@ -78,3 +82,15 @@ class Opportunity(TenantScopedModel, TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        from django.utils import timezone
+
+        closed = self.stage.is_won or self.stage.is_lost
+        if closed and self.closed_at is None:
+            self.closed_at = timezone.now()
+        elif not closed:
+            self.closed_at = None
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"closed_at"}
+        super().save(*args, **kwargs)

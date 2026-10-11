@@ -383,3 +383,21 @@ table.grid .cell-name { font-weight: 600; }
   .bar-row { grid-template-columns: 90px 1fr 100px; }
 }
 table.grid th.num { text-align: right; }
+
+/* ---------- Mejoras: WhatsApp, historial, contadores ---------- */
+.wa-link { display: inline-flex; color: #16a34a; }
+.wa-link svg.icon { width: 16px; height: 16px; }
+.wa-link:hover { color: #0f7a37; }
+.btn-wa { color: #128c45; }
+.btn-wa:hover { background: #e8f7ee; border-color: #16a34a; }
+.timeline { list-style: none; margin: 0; padding: 0 16px 8px; }
+.timeline li { position: relative; padding: 10px 0 10px 22px; border-left: 2px solid var(--border); margin-left: 6px; }
+.timeline li::before { content: ""; position: absolute; left: -6px; top: 15px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.timeline li.created::before { border-color: var(--info); }
+.timeline li.converted::before { background: var(--accent); }
+.timeline .when { color: var(--muted); font-size: 12px; }
+.sb-count { margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 10px; background: rgba(255, 255, 255, .16); color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+.sb-link.active .sb-count { background: rgba(255, 255, 255, .25); }
+.shell.collapsed .sb-count { display: none; }
+.kbd { display: inline-block; padding: 0 6px; border: 1px solid var(--border-strong); border-radius: 4px; font-size: 11px; color: var(--muted); background: var(--surface); }
+.top-search .kbd { position: absolute; right: 10px; top: 9px; }

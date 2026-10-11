@@ -2,7 +2,8 @@
 import { api, refreshMe, session } from "/shared/api.js";
 import { icon } from "../icons.js";
 import { getMeta, getStages, resetCaches } from "../modules.js";
-import { avatar, badge, emptyState, h, modal, toast } from "../ui.js";
+import { avatar, badge, confirmDialog, datetime, emptyState, h, modal, popover, toast } from "../ui.js";
+import { passwordModal } from "./backoffice.js";
 
 const SECTIONS = {
   company: { title: "Información de la empresa", icon: "company", desc: "Nombre, moneda, colores y logo de tu empresa en el CRM." },
@@ -98,12 +99,14 @@ export async function renderSettings(page, tab) {
     head(isAdmin ? h("button.btn.btn-primary", { onclick: () => userModal(meta, rerender) }, icon("plus"), "Nuevo usuario") : null),
     readOnlyNote,
     h("section.card", h("div.table-wrap", h("table.grid",
-      h("thead", h("tr", ["Usuario", "Correo", "Rol", "Estado"].map((x) => h("th.no-sort", x)))),
+      h("thead", h("tr", ["Usuario", "Correo", "Rol", "Estado", "Último acceso", ""].map((x) => h("th.no-sort", x)))),
       h("tbody", users.map((u) => h("tr",
         h("td", h("div.row", avatar(u.full_name), h("div", h("div.cell-name", u.full_name), h("div.muted.small", u.username)))),
         h("td", u.email || h("span.muted", "—")),
         h("td", badge(u.role, roleLabel(u.role))),
-        h("td", u.is_active ? "Activo" : "Inactivo"))))))));
+        h("td", u.is_active ? badge("CALIFICADO", "Activo") : badge("DESCARTADO", "Inactivo")),
+        h("td", u.last_login ? datetime(u.last_login) : h("span.muted", "Nunca")),
+        h("td", { style: { textAlign: "right" } }, isAdmin && u.id !== session.user.id ? userActions(u, meta, rerender) : ""))))))));
 }
 
 function userModal(meta, done) {
@@ -151,6 +154,45 @@ function stageModal(stage, done) {
           name: name.value.trim(), sequence: Number(sequence.value), probability: Number(probability.value), color: color.value,
           is_won: kind.value === "won", is_lost: kind.value === "lost", is_active: active.checked } });
         m.close(); await getStages(true); toast("Etapa guardada", "success"); done();
+      } catch (ex) { toast(ex.message, "error"); }
+    } }, "Guardar")],
+  });
+}
+
+// Acciones del administrador del cliente sobre sus usuarios (las mismas del Panel Solvis).
+function userActions(u, meta, done) {
+  const btn = h("button.btn.btn-sm.btn-icon", { title: "Acciones", onclick: () => popover(btn, [
+    h("button.item", { onclick: () => passwordModal(u, "users") }, icon("key"), "Cambiar contraseña"),
+    h("button.item", { onclick: async () => {
+      try {
+        const r = await api(`users/${u.id}/logout/`, { method: "POST" });
+        toast(r.sessions_closed ? `Se cerraron las sesiones de ${u.full_name}` : `${u.full_name} no tenía sesiones abiertas`, "success");
+      } catch (ex) { toast(ex.message, "error"); }
+    } }, icon("logout"), "Cerrar sesión"),
+    h("button.item", { onclick: () => roleModal(u, meta, done) }, icon("users"), "Editar datos y rol"),
+    h("div.sep"),
+    h("button.item", { style: { color: u.is_active ? "var(--danger)" : "var(--success)" }, onclick: async () => {
+      if (u.is_active && !(await confirmDialog(`Desactivar a ${u.full_name}`, "No va a poder entrar al CRM y se cierran sus sesiones. Sus registros no se borran.", { okLabel: "Desactivar" }))) return;
+      try {
+        await api(`users/${u.id}/`, { method: "PATCH", body: { is_active: !u.is_active } });
+        toast(u.is_active ? "Usuario desactivado" : "Usuario activado", "success"); done();
+      } catch (ex) { toast(ex.message, "error"); }
+    } }, icon(u.is_active ? "close" : "check"), u.is_active ? "Desactivar" : "Activar"),
+  ], { align: "right" }) }, icon("more"));
+  return btn;
+}
+
+function roleModal(u, meta, done) {
+  const f = Object.fromEntries(["first_name", "last_name", "email"].map((k) => [k, h("input.input", { value: u[k] || "" })]));
+  const role = h("select.select", meta.user_role.map((c) => h("option", { value: c.value, selected: c.value === u.role }, c.label)));
+  const m = modal({
+    title: `Editar ${u.full_name}`,
+    body: [h("div.field", h("label", "Nombre"), f.first_name), h("div.field", h("label", "Apellido"), f.last_name),
+      h("div.field", h("label", "Correo"), f.email), h("div.field", h("label", "Rol"), role)],
+    footer: [h("button.btn", { onclick: () => m.close() }, "Cancelar"), h("button.btn.btn-primary", { onclick: async () => {
+      try {
+        await api(`users/${u.id}/`, { method: "PATCH", body: { first_name: f.first_name.value.trim(), last_name: f.last_name.value.trim(), email: f.email.value.trim(), role: role.value } });
+        m.close(); resetCaches(); toast("Usuario actualizado", "success"); done();
       } catch (ex) { toast(ex.message, "error"); }
     } }, "Guardar")],
   });

@@ -1,8 +1,8 @@
 // Arranque del front general de Solvis: login, barra superior y rutas.
-import { ApiError, ensureFrontend, login, logout, refreshMe, session } from "/shared/api.js";
+import { ApiError, api, ensureFrontend, login, logout, refreshMe, session } from "/shared/api.js";
 import { icon } from "./icons.js";
 import { MODULES, byPath, resetCaches } from "./modules.js";
-import { avatar, h, popover, toast } from "./ui.js";
+import { avatar, h, modal, popover, toast } from "./ui.js";
 import { renderHome } from "./views/home.js";
 import { renderList } from "./views/list.js";
 import { renderDetail } from "./views/detail.js";
@@ -102,7 +102,7 @@ function sidebar() {
     },
   });
   const closedGroups = store.get("closed_groups", []);
-  const link = (it) => h("a.sb-link", { href: `#/${it.path}`, dataset: { path: it.path }, title: it.label }, icon(it.icon), h("span.sb-label", it.label));
+  const link = (it) => h("a.sb-link", { href: `#/${it.path}`, dataset: { path: it.path }, title: it.label }, icon(it.icon), h("span.sb-label", it.label), h("span.sb-count.hidden"));
   const groups = NAV.map((g) => {
     if (!g.title) return g.items.map(link);
     const box = h(`div.sb-group${closedGroups.includes(g.title) ? ".closed" : ""}`,
@@ -154,12 +154,13 @@ function header() {
     h("div.head", h("div", { style: { fontWeight: 600 } }, user?.full_name), h("div.muted.small", session.tenant?.name || ""), h("div.muted.small", user?.role || "")),
     h("div.sep"),
     h("a.item", { href: "#/settings" }, icon("settings"), "Configuración"),
+    h("button.item", { onclick: changeMyPassword }, icon("key"), "Cambiar mi contraseña"),
     h("button.item", { onclick: () => { logout(); renderLogin(); } }, icon("logout"), "Cerrar sesión"),
   ], { align: "right" }));
   return h("header.topbar",
     h("button.btn.btn-ghost.btn-icon.menu-btn", { title: "Menú", onclick: () => shell.classList.add("mobile-open") }, icon("menu")),
     crumb,
-    h("div.top-search", icon("search"), search),
+    h("div.top-search", icon("search"), search, h("span.kbd", "/")),
     h("div.topbar-right",
       plusBtn,
       h("a.btn.btn-ghost.btn-icon", { href: "#/tasks", title: "Mis tareas" }, icon("task")),
@@ -168,6 +169,44 @@ function header() {
 }
 
 let lastAppHash = "#/home";
+// Contadores del menú (leads nuevos y tareas pendientes), como los de Zoho.
+async function refreshCounters() {
+  try {
+    const { totals } = await api("dashboard/");
+    const set = (path, n, title) => {
+      const el = document.querySelector(`.sb-link[data-path="${path}"] .sb-count`);
+      if (!el) return;
+      el.textContent = n > 99 ? "99+" : n;
+      el.title = title;
+      el.classList.toggle("hidden", !n);
+    };
+    set("leads", totals.leads_new, "Leads nuevos");
+    set("tasks", totals.tasks_pending, "Tus tareas pendientes");
+  } catch {}
+}
+
+function changeMyPassword() {
+  const current = h("input.input", { type: "password", autocomplete: "current-password" });
+  const next = h("input.input", { type: "password", autocomplete: "new-password" });
+  const repeat = h("input.input", { type: "password", autocomplete: "new-password" });
+  const m = modal({
+    title: "Cambiar mi contraseña",
+    body: [
+      h("div.field", h("label", "Contraseña actual"), current),
+      h("div.field", h("label", "Contraseña nueva"), next),
+      h("div.field", h("label", "Repetir la nueva"), repeat),
+      h("p.muted.small", { style: { margin: 0 } }, "Mínimo 8 caracteres, que no sea solo números ni una contraseña común."),
+    ],
+    footer: [h("button.btn", { onclick: () => m.close() }, "Cancelar"), h("button.btn.btn-primary", { onclick: async () => {
+      if (next.value !== repeat.value) return toast("Las contraseñas nuevas no coinciden.", "error");
+      try {
+        await api("users/me/password/", { method: "POST", body: { current_password: current.value, new_password: next.value } });
+        m.close(); toast("Contraseña actualizada", "success");
+      } catch (ex) { toast(ex.message, "error"); }
+    } }, "Guardar")],
+  });
+}
+
 function setActive(section, sub) {
   const inSettings = section === "settings";
   shell.classList.toggle("settings-mode", inSettings);
@@ -178,6 +217,7 @@ function setActive(section, sub) {
   const [label, ic] = mod ? [mod.plural, mod.icon] : SECTION_TITLES[section] || ["", "home"];
   crumb.replaceChildren(icon(ic), label);
   shell.classList.remove("mobile-open");
+  refreshCounters();
 }
 
 function applyBranding() {
@@ -234,6 +274,12 @@ async function start() {
 }
 
 window.addEventListener("resize", () => shell && applyCollapsed());
+// "/" lleva al buscador de registros (atajo de teclado como en Zoho).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  const input = document.querySelector(".top-search input");
+  if (input) { e.preventDefault(); input.focus(); }
+});
 window.addEventListener("hashchange", () => main && session.isLoggedIn && route());
 window.addEventListener("unhandledrejection", (e) => { if (e.reason instanceof ApiError) toast(e.reason.message, "error"); });
 session.isLoggedIn ? start() : renderLogin();
