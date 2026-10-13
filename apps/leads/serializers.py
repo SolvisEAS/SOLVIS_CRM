@@ -35,3 +35,13 @@ class LeadSerializer(TenantScopedSerializerMixin, serializers.ModelSerializer):
             "id", "created_at", "updated_at", "converted_at",
             "converted_company", "converted_contact", "converted_opportunity",
         )
+
+
+class LeadConvertSerializer(serializers.Serializer):
+    """Opciones del "Convertir" (Lead -> Empresa + Contacto + Oportunidad)."""
+
+    create_opportunity = serializers.BooleanField(default=True)
+    opportunity_name = serializers.CharField(required=False, allow_blank=True)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, default=0)
+    expected_closing_date = serializers.DateField(required=False, allow_null=True)
+    stage = serializers.IntegerField(required=False, allow_null=True)

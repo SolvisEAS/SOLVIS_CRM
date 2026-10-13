@@ -23,7 +23,9 @@ export async function renderSettings(page, tab) {
         h("div.kpi-icon", icon(s.icon)), h("div", h("h3", s.title), h("div.muted", s.desc)))),
         // Solo el personal de Solvis (is_staff) ve el panel donde se crean clientes nuevos.
         session.user?.is_staff ? h("a.card.settings-card", { href: "#/settings/tenants" },
-          h("div.kpi-icon", icon("company")), h("div", h("h3", "Clientes"), h("div.muted", "Solo para Solvis: empresas habilitadas, sus usuarios, contraseñas y accesos."))) : null));
+          h("div.kpi-icon", icon("company")), h("div", h("h3", "Clientes"), h("div.muted", "Solo para Solvis: empresas habilitadas, sus usuarios, contraseñas y accesos."))) : null,
+        session.user?.is_staff ? h("a.card.settings-card", { href: "#/prospecting" },
+          h("div.kpi-icon", icon("target")), h("div", h("h3", "Captación"), h("div.muted", "Solo para Solvis: Claude busca en internet gente que necesita un CRM o un sistema."))) : null));
     return;
   }
 

@@ -24,6 +24,7 @@ class Lead(TenantScopedModel, TimeStampedModel):
         RECOMENDACION = "RECOMENDACION", "Recomendación"
         REGISTRO_MANUAL = "REGISTRO_MANUAL", "Registro manual"
         CAMPANA_MARKETING = "CAMPANA_MARKETING", "Campaña de marketing"
+        CAPTACION_WEB = "CAPTACION_WEB", "Captación web"
 
     class Status(models.TextChoices):
         NUEVO = "NUEVO", "Nuevo"

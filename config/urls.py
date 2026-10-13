@@ -58,4 +58,6 @@ urlpatterns = [
 
     # Panel Solvis: clientes y sus usuarios (solo personal de Solvis)
     path("api/backoffice/", include("apps.backoffice.urls")),
+    # Captación: búsqueda de posibles clientes en internet con Claude (solo personal de Solvis)
+    path("api/prospecting/", include("apps.prospecting.urls")),
 ]

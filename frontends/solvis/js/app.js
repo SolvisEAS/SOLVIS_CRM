@@ -11,6 +11,7 @@ import { renderTasks, openTaskModal } from "./views/tasks.js";
 import { renderSearch } from "./views/search.js";
 import { renderSettings } from "./views/settings.js";
 import { renderBackoffice } from "./views/backoffice.js";
+import { renderProspecting } from "./views/prospecting.js";
 
 const FRONTEND = "solvis";
 const root = document.getElementById("app");
@@ -33,7 +34,7 @@ const SETTINGS_NAV = [
   { title: "Usuarios y permisos", items: [{ path: "settings/users", label: "Usuarios", icon: "users" }] },
   { title: "Personalización", items: [{ path: "settings/stages", label: "Pipeline de ventas", icon: "kanban" }] },
 ];
-const SECTION_TITLES = { home: ["Inicio", "home"], tasks: ["Actividades", "task"], search: ["Búsqueda", "search"], settings: ["Configuración", "settings"] };
+const SECTION_TITLES = { home: ["Inicio", "home"], tasks: ["Actividades", "task"], search: ["Búsqueda", "search"], settings: ["Configuración", "settings"], prospecting: ["Captación", "target"] };
 
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(`solvis_crm_${k}`)) ?? d; } catch { return d; } },
@@ -103,7 +104,10 @@ function sidebar() {
   });
   const closedGroups = store.get("closed_groups", []);
   const link = (it) => h("a.sb-link", { href: `#/${it.path}`, dataset: { path: it.path }, title: it.label }, icon(it.icon), h("span.sb-label", it.label), h("span.sb-count.hidden"));
-  const groups = NAV.map((g) => {
+  const nav = session.user?.is_staff
+    ? [...NAV, { title: "Solvis", items: [{ path: "prospecting", label: "Captación", icon: "target" }] }]
+    : NAV;
+  const groups = nav.map((g) => {
     if (!g.title) return g.items.map(link);
     const box = h(`div.sb-group${closedGroups.includes(g.title) ? ".closed" : ""}`,
       h("button.sb-group-title", { type: "button", onclick: () => {
@@ -118,7 +122,10 @@ function sidebar() {
   const settingsNav = h("div.sb-settings",
     h("a.sb-link.sb-back", { href: "#/home", onclick: (e) => { e.preventDefault(); location.hash = lastAppHash; } }, icon("back"), h("span.sb-label", "Volver al CRM")),
     h("a.sb-settings-title", { href: "#/settings", title: "Configuración" }, icon("settings"), h("span.sb-label", "Configuración")),
-    [...SETTINGS_NAV, ...(session.user?.is_staff ? [{ title: "Panel Solvis", items: [{ path: "settings/tenants", label: "Clientes", icon: "company" }] }] : [])].map((g) => h("div.sb-group", h("div.sb-group-title", h("span", g.title)), h("div.sb-items", g.items.map(link)))));
+    [...SETTINGS_NAV, ...(session.user?.is_staff ? [{ title: "Panel Solvis", items: [
+      { path: "settings/tenants", label: "Clientes", icon: "company" },
+      { path: "prospecting", label: "Captación", icon: "target" },
+    ] }] : [])].map((g) => h("div.sb-group", h("div.sb-group-title", h("span", g.title)), h("div.sb-items", g.items.map(link)))));
   return h("aside.sidebar",
     h("div.sb-top",
       h("a.brand", { href: "#/home" }, h("img", { src: tenant?.logo_url || "img/isotipo-blanco.png", alt: "" }), h("span", "Solvis CRM")),
@@ -248,6 +255,7 @@ async function route() {
     else if (section === "tasks") await renderTasks(page, query);
     else if (section === "search") await renderSearch(page, query.get("q") || "");
     else if (section === "settings" && id === "tenants") await renderBackoffice(page, action);
+    else if (section === "prospecting") await renderProspecting(page, id, query);
     else if (section === "settings") await renderSettings(page, id);
     else if (mod && !id) await renderList(page, mod, query);
     else if (mod && id === "new") await renderForm(page, mod, null, query);

@@ -61,6 +61,32 @@ python manage.py seed_demo_data --tenant demo
   aviso de duplicados, clonar, vistos recientemente, contadores en el menú,
   atajo `/` para buscar y "Cambiar mi contraseña".
 
+## Captación (Panel Solvis)
+
+Sección **Captación** (`#/prospecting`, solo `is_staff`): Claude busca en
+publicaciones públicas de internet gente que pide un CRM, un sistema o un
+desarrollador, y el equipo de Solvis la contacta y la convierte en venta.
+
+- **Búsquedas** (`/api/prospecting/searches/`): frases, países, período (días)
+  y profundidad (cuántas búsquedas web puede hacer Claude).
+- **Buscar ahora** (`POST /api/prospecting/searches/{id}/run/`): lanza
+  `manage.py prospecting_run <id>` en un proceso aparte (una búsqueda a la vez).
+  Claude usa la búsqueda web y la lectura de páginas de la API de Anthropic,
+  escribe un informe y después se pasa a JSON con salida estructurada.
+- **Prospectos** (`/api/prospecting/prospects/`): de dónde salió (link, sitio,
+  fecha), qué dijo, contactos públicos y un puntaje de interés. No se guarda
+  dos veces la misma publicación (`source_key` = link normalizado).
+- **Convertir** (`POST /api/prospecting/prospects/{id}/convert/`): crea un Lead
+  con origen "Captación web" y lo convierte en Empresa + Contacto (+ Oportunidad)
+  con la misma lógica del "Convertir" de Leads (`apps/leads/services.py`).
+- **Configuración** (`/api/prospecting/settings/`): clave de la API de Anthropic
+  (se guarda en la base y nunca se devuelve; también sirve `ANTHROPIC_API_KEY`
+  en el entorno), modelo y tope de gasto mensual. Cada ejecución guarda tokens,
+  búsquedas web y costo estimado.
+
+Requiere la librería oficial `anthropic` en el entorno del CRM. Sin ella, la pantalla
+funciona pero avisa que falta instalarla al buscar.
+
 ## Pruebas
 
 ```bash
