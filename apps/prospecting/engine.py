@@ -187,7 +187,7 @@ def research(client, model, search, date_from, date_to, known_urls, usage):
     for _ in range(MAX_CONTINUATIONS):
         with client.beta.messages.stream(
             model=model, max_tokens=32000, system=RESEARCH_SYSTEM, messages=messages, tools=tools,
-            output_config={"effort": effort}, betas=[FALLBACK_BETA], extra_body={"fallbacks": "default"},
+            output_config={"effort": effort}, betas=[FALLBACK_BETA], fallbacks="default",
         ) as stream:
             response = stream.get_final_message()
         usage.add(response.usage)
@@ -208,7 +208,7 @@ def extract(client, model, report, usage):
         model=model, max_tokens=16000, system=EXTRACT_SYSTEM,
         messages=[{"role": "user", "content": f"<informe>\n{report}\n</informe>"}],
         output_config={"effort": "low", "format": {"type": "json_schema", "schema": EXTRACT_SCHEMA}},
-        betas=[FALLBACK_BETA], extra_body={"fallbacks": "default"},
+        betas=[FALLBACK_BETA], fallbacks="default",
     )
     usage.add(response.usage)
     check_refusal(response)

@@ -84,7 +84,7 @@ desarrollador, y el equipo de Solvis la contacta y la convierte en venta.
   en el entorno), modelo y tope de gasto mensual. Cada ejecución guarda tokens,
   búsquedas web y costo estimado.
 
-Requiere la librería oficial `anthropic` en el entorno del CRM. Sin ella, la pantalla
+Requiere la librería oficial `anthropic` (en `requirements/base.txt`). Sin ella, la pantalla
 funciona pero avisa que falta instalarla al buscar.
 
 ## Pruebas
