@@ -74,7 +74,7 @@ export async function renderProspecting(page, tab = "", query = new URLSearchPar
   const runBox = h("div");
   if (running) watchRun(running, runBox, rerender);
 
-  page.append(
+  page.append(...[
     h("div.page-header",
       h("div", h("h1", "Captación"), h("div.muted", "Gente que pide en internet lo que vende Solvis. Solo lo ve el equipo Solvis.")),
       h("div.grow"),
@@ -90,7 +90,7 @@ export async function renderProspecting(page, tab = "", query = new URLSearchPar
       kpi("phone", "amber", "Contactados", stats.by_status.CONTACTADO + stats.by_status.RESPONDIO, `${stats.by_status.RESPONDIO} respondieron`),
       kpi("deal", "green", "Convertidos", stats.by_status.CONVERTIDO, "pasaron a oportunidad de venta"),
       kpi("chart", "", "Gasto del mes", usd(stats.month_spend_usd), `de un tope de ${usd(stats.monthly_budget_usd)}`)),
-  );
+  ].filter(Boolean));
   const body = h("div");
   page.append(body);
   if (tab === "searches") return renderSearches(body, rerender, !!running);
@@ -149,8 +149,8 @@ async function renderProspects(box, stats, query, rerender) {
       return;
     }
     tableWrap.replaceChildren(h("table.grid",
-      h("thead", h("tr", ["Interés", "Quién y qué necesita", "De dónde viene", "Contacto", "Estado", ""].map((x) => h("th.no-sort", x)))),
-      h("tbody", data.results.map((p) => h("tr.clickable", { onclick: (e) => { if (!e.target.closest("a, button")) openProspect(p, load); } },
+      h("thead", h("tr", ["Interés", "Quién y qué necesita", "De dónde viene", "Contacto", "Estado"].map((x) => h("th.no-sort", x)))),
+      h("tbody", data.results.map((p) => h("tr.clickable", { title: "Tocá para ver la ficha", onclick: (e) => { if (!e.target.closest("a, button")) openProspect(p, load); } },
         h("td", scorePill(p.score)),
         h("td", { style: { maxWidth: "420px" } },
           h("div.cell-name", p.name || p.company || "Sin nombre", p.name && p.company ? h("span.muted", ` · ${p.company}`) : ""),
@@ -158,8 +158,7 @@ async function renderProspects(box, stats, query, rerender) {
         h("td", h("div", safeUrl(p.source_url) ? ext(p.source_url, p.source_name || "Ver publicación", " ", icon("external", "inline")) : (p.source_name || "—")),
           h("div.muted.small", [p.published_at ? `Publicado ${date(p.published_at)}` : "Fecha desconocida", p.location].filter(Boolean).join(" · "))),
         h("td", contactIcons(p)),
-        h("td", badge(p.status, p.status_label)),
-        h("td", h("button.btn.btn-sm", { onclick: () => openProspect(p, load) }, "Ver")))))));
+        h("td", badge(p.status, p.status_label)))))));
     const pages = Math.max(1, Math.ceil(data.count / 25));
     pager.replaceChildren(h("span", `${data.count} prospectos`), h("span.grow"),
       h("button.btn.btn-sm", { disabled: state.page <= 1, onclick: () => { state.page--; load(); } }, "Anterior"),
@@ -324,7 +323,7 @@ async function renderSearches(box, rerender, busy) {
   };
   box.append(h("div.search-cards", searches.map((s) => {
     const r = s.last_run;
-    const runBtn = h("button.btn.btn-primary", { disabled: busy || !s.is_active, onclick: () => runNow(s, runBtn) }, icon("search"), "Buscar ahora");
+    const runBtn = h("button.btn.btn-sm.btn-primary", { disabled: busy || !s.is_active, onclick: () => runNow(s, runBtn) }, icon("search"), "Buscar ahora");
     return h("section.card.search-card",
       h("div.card-header", h("h3", s.name), s.is_active ? null : badge("DESCARTADO", "Pausada"), h("span.grow"),
         h("a.small", { href: `#/prospecting?search_id=${s.id}&status=`, title: "Ver sus prospectos" }, `${s.prospects_count} prospectos`)),
@@ -336,8 +335,8 @@ async function renderSearches(box, rerender, busy) {
             : r.status === "ERROR" ? h("span", { style: { color: "var(--danger)" } }, r.error) : ago(r.created_at)]
           : h("span.muted", "Nunca se ejecutó")),
         h("div.row", { style: { flexWrap: "wrap" } }, runBtn,
-          h("button.btn", { onclick: () => searchModal(s, rerender) }, icon("edit"), "Editar"),
-          h("button.btn", { onclick: () => runsModal(s) }, icon("history"), "Historial"),
+          h("button.btn.btn-sm", { onclick: () => searchModal(s, rerender) }, icon("edit"), "Editar"),
+          h("button.btn.btn-sm", { onclick: () => runsModal(s) }, icon("history"), "Historial"),
           h("button.btn.btn-ghost.btn-icon", { title: "Eliminar", onclick: async () => {
             if (!(await confirmDialog(`Eliminar «${s.name}»`, "Se borra la búsqueda y su historial. Los prospectos que encontró se quedan."))) return;
             await api(`prospecting/searches/${s.id}/`, { method: "DELETE" }); toast("Búsqueda eliminada", "success"); rerender();
